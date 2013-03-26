@@ -1,0 +1,16 @@
+# Compiled files
+libsteam++.a
+steamuv
+
+# CMake stuff
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
+
+# vim stuff
+*~
+
+# Protobufs
+*.pb.cc
+*.pb.h

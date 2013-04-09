@@ -54,3 +54,26 @@ if (LIBUV_FOUND)
 		${LIBUV_LIBRARIES}
 	)
 endif()
+
+
+# libpurple plugin
+
+find_package(PkgConfig)
+if (PKG_CONFIG_FOUND)
+	pkg_check_modules(PURPLE
+		glib-2.0
+		purple
+	)
+	if (PURPLE_FOUND)
+		add_library(steam MODULE
+			steampurple.cpp
+		)
+		
+		include_directories(${PURPLE_INCLUDE_DIRS})
+		
+		target_link_libraries(steam
+			steam++
+			${PURPLE_LIBRARIES}
+		)
+	endif()
+endif()

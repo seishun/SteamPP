@@ -114,6 +114,26 @@ void SteamClient::JoinChat(SteamID chat) {
 	});
 }
 
+void SteamClient::LeaveChat(SteamID chat) {
+	// TODO: move this somwehre else
+	if (chat.type == static_cast<unsigned>(EAccountType::Clan)) {
+		// this is a ClanID - convert to its respective ChatID
+		chat.instance = static_cast<unsigned>(0x100000 >> 1); // TODO: this should be defined somewhere else
+		chat.type = static_cast<unsigned>(EAccountType::Chat);
+	}
+	
+	WriteMessage(EMsg::ClientChatMemberInfo, false, sizeof(MsgClientChatMemberInfo) + 20, [&](unsigned char* buffer) {
+		auto leave_chat = new (buffer) MsgClientChatMemberInfo;
+		leave_chat->steamIdChat = chat.steamID64;
+		leave_chat->type = static_cast<unsigned>(EChatInfoType::StateChange);
+		
+		auto payload = buffer + sizeof(MsgClientChatMemberInfo);
+		*reinterpret_cast<std::uint64_t*>(payload) = steamID.steamID64; // chatter_acted_on
+		*reinterpret_cast<EChatMemberStateChange*>(payload + 8) = EChatMemberStateChange::Left; // state_change
+		*reinterpret_cast<std::uint64_t*>(payload + 8 + 4) = steamID.steamID64; // chatter_acted_by
+	});
+}
+
 void SteamClient::SendChatMessage(SteamID chat, const std::string& message) {
 	// TODO: move this somwehre else
 	if (chat.type == static_cast<unsigned>(EAccountType::Clan))	{

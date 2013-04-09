@@ -38,6 +38,7 @@ namespace Steam {
 		void LogOn(std::string username, std::string password, std::string code = "");
 		void SetPersonaState(EPersonaState state);
 		void JoinChat(SteamID chat);
+		void LeaveChat(SteamID chat);
 		void SendChatMessage(SteamID chat, const std::string& message);
 		
 	private:

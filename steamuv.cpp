@@ -53,7 +53,7 @@ SteamClient client(
 			auto callback = reinterpret_cast<std::function<void()>*>(handle->data);
 			(*callback)();
 			// TODO: delete it somewhere
-		}, timeout, timeout);
+		}, timeout * 1000, timeout * 1000);
 	}
 );
 

@@ -174,5 +174,18 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 		}
 		
 		break;
+		
+	case EMsg::ClientChatEnter:
+		{
+			if (!onChatEnter)
+				return;
+			
+			auto msg = reinterpret_cast<const MsgClientChatEnter*>(data);
+			onChatEnter(msg->steamIdChat, static_cast<EChatRoomEnterResponse>(msg->enterResponse));
+			
+			// TODO: parse the payload
+		}
+		
+		break;
 	}
 }

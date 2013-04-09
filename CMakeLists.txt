@@ -6,7 +6,8 @@ find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(LibArchive REQUIRED)
 
-set(PROTOBUF_IMPORT_DIRS $ENV{STEAMRE}/Resources/Protobufs)
+set(STEAMRE $ENV{SteamRE} CACHE PATH "Where you cloned SteamRE")
+set(PROTOBUF_IMPORT_DIRS ${STEAMRE}/Resources/Protobufs)
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS
 	${PROTOBUF_IMPORT_DIRS}/steamclient/steammessages_clientserver.proto
 	${PROTOBUF_IMPORT_DIRS}/steamclient/steammessages_base.proto

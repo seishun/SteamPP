@@ -143,11 +143,11 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			auto eresult = static_cast<EResult>(logon_resp.eresult());
 			auto interval = logon_resp.out_of_game_heartbeat_seconds();
 			
+			if (onLogOn) {
+				onLogOn(eresult);
+			}
+			
 			if (eresult == EResult::OK) {
-				if (onLogOn) {
-					onLogOn();
-				}
-				
 				setInterval([this] {
 					CMsgClientHeartBeat heartbeat;
 					auto size = heartbeat.ByteSize();

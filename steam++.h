@@ -30,7 +30,7 @@ namespace Steam {
 		std::size_t readable(const unsigned char* buffer);
 		
 		// signals
-		std::function<void()> onLogOn;
+		std::function<void(EResult result)> onLogOn;
 		std::function<void(SteamID source, std::string message)> onChatMsg;
 		
 		// methods

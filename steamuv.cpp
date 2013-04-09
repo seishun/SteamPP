@@ -62,10 +62,12 @@ int main() {
 	uv_timer_init(uv_default_loop(), &timer);
 	
 	client.LogOn("username", "password", "optional code");
-	client.onLogOn = [] {
-		std::cout << "logged on!" << std::endl;
-		client.SetPersonaState(EPersonaState::Online);
-		client.JoinChat(103582791432594962);
+	client.onLogOn = [](EResult result) {
+		if (result == EResult::OK) {
+			std::cout << "logged on!" << std::endl;
+			client.SetPersonaState(EPersonaState::Online);
+			client.JoinChat(103582791432594962);
+		}
 	};
 	
 	client.onChatMsg = [](SteamID source, std::string message) {

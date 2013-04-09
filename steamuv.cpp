@@ -70,9 +70,9 @@ int main() {
 		}
 	};
 	
-	client.onChatMsg = [](SteamID source, std::string message) {
+	client.onChatMsg = [](SteamID room, SteamID chatter, std::string message) {
 		if (message == "ping") {
-			client.SendChatMessage(source, "pong");
+			client.SendChatMessage(room, "pong");
 		}
 	};
 	

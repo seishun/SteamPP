@@ -170,7 +170,7 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			auto raw = reinterpret_cast<const char*>(data + sizeof(MsgClientChatMsg));
 			
 			// Steam cuts off after the first null or displays the whole string if there isn't one
-			onChatMsg(msg->steamIdChatRoom, std::string(raw, strnlen(raw, length - sizeof(MsgClientChatMsg))));
+			onChatMsg(msg->steamIdChatRoom, msg->steamIdChatter, std::string(raw, strnlen(raw, length - sizeof(MsgClientChatMsg))));;
 		}
 		
 		break;

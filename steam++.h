@@ -31,7 +31,7 @@ namespace Steam {
 		
 		// signals
 		std::function<void(EResult result)> onLogOn;
-		std::function<void(SteamID source, std::string message)> onChatMsg;
+		std::function<void(SteamID room, SteamID chatter, std::string message)> onChatMsg;
 		
 		// methods
 		void LogOn(std::string username, std::string password, std::string code = "");

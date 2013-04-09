@@ -78,10 +78,10 @@ SteamClient::SteamClient(
 	encrypted(false) { }
 
 void SteamClient::LogOn(std::string username, std::string password, std::string code) {
-	username = std::move(username);
-	password = std::move(password);
+	this->username = std::move(username);
+	this->password = std::move(password);
 	if (code.length()) {
-		code = std::move(code);
+		this->code = std::move(code);
 	}
 	
 	steamID.instance = 1;

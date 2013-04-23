@@ -21,6 +21,7 @@ include_directories(
 	${OPENSSL_INCLUDE_DIR}
 	${ZLIB_INCLUDE_DIRS}
 	${LibArchive_INCLUDE_DIRS}
+	${CMAKE_BINARY_DIR}
 )
 
 add_library(steam++

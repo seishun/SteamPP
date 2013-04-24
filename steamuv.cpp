@@ -45,7 +45,7 @@ int main() {
 	
 	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
 	auto connect = new uv_connect_t;
-	uv_tcp_connect(connect, &sock, uv_ip4_addr(endpoint.host.c_str(), endpoint.port), [](uv_connect_t* req, int status) {
+	uv_tcp_connect(connect, &sock, uv_ip4_addr(endpoint.host, endpoint.port), [](uv_connect_t* req, int status) {
 		auto length = client.connected();
 		read_buffer.resize(length);
 		uv_read_start(req->handle, [](uv_handle_t* handle, size_t suggested_size) {

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <string>
 #include <vector>
 
 #include <unistd.h>
@@ -63,7 +64,7 @@ GList* steam_status_types(PurpleAccount* account) {
 
 static void connect(PurpleAccount* account, SteamPurple* steam) {
 	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
-	purple_proxy_connect(NULL, account, endpoint.host.c_str(), endpoint.port, [](gpointer data, gint source, const gchar* error_message) {
+	purple_proxy_connect(NULL, account, endpoint.host, endpoint.port, [](gpointer data, gint source, const gchar* error_message) {
 		// TODO: check source and error
 		assert(source != -1);
 		auto steam = reinterpret_cast<SteamPurple*>(data);

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 
 #include "steam++.h"
@@ -158,10 +159,19 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 				return;
 			
 			auto msg = reinterpret_cast<const MsgClientChatMsg*>(data);
-			auto raw = reinterpret_cast<const char*>(data + sizeof(MsgClientChatMsg));
+			auto begin = reinterpret_cast<const char*>(data + sizeof(MsgClientChatMsg));
+			auto end = reinterpret_cast<const char*>(data + length);
 			
 			// Steam cuts off after the first null or displays the whole string if there isn't one
-			onChatMsg(msg->steamIdChatRoom, msg->steamIdChatter, std::string(raw, strnlen(raw, length - sizeof(MsgClientChatMsg))));;
+			onChatMsg(
+				msg->steamIdChatRoom,
+				msg->steamIdChatter,
+				std::find(begin, end, '\0') == end ?
+					// no null, someone is using a non-conforming implementation
+					std::string(begin, end - begin).c_str() :
+					// null-terminated already, no copy necessary
+					begin
+			);
 		}
 		
 		break;

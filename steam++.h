@@ -1,10 +1,9 @@
 #include <functional>
-#include <string>
 #include "steam_language/steam_language.h"
 
 namespace Steam {
 	const struct {
-		std::string host;
+		const char* host;
 		std::uint16_t port;
 	} servers[] = {
 		{ "72.165.61.174", 27017 },
@@ -107,12 +106,12 @@ namespace Steam {
 		std::function<void(SteamID room, EChatRoomEnterResponse response)> onChatEnter;
 		
 		// a message has been received in a chat
-		std::function<void(SteamID room, SteamID chatter, std::string message)> onChatMsg;
+		std::function<void(SteamID room, SteamID chatter, const char* message)> onChatMsg;
 		
 		/* methods */
 
 		// optionally, `code` is your Steam Guard code
-		void LogOn(std::string username, std::string password, std::string code = "");
+		void LogOn(const char* username, const char* password, const char* code = nullptr);
 		
 		// you'll want to call this with EPersonaState::Online upon logon to become visible
 		void SetPersonaState(EPersonaState state);
@@ -122,7 +121,7 @@ namespace Steam {
 		
 		void LeaveChat(SteamID chat);
 		
-		void SendChatMessage(SteamID chat, const std::string& message);
+		void SendChatMessage(SteamID chat, const char* message);
 		
 	private:
 		std::function<void(std::size_t length, std::function<void(unsigned char* buffer)> fill)> write;

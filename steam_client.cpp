@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <iostream> // TEMPORARY
 #include "steam++.h"
 #include "steam_language/steam_language_internal.h"
@@ -25,12 +26,12 @@ SteamClient::SteamClient(
 	steamID.type = static_cast<unsigned>(EAccountType::Individual);
 }
 
-void SteamClient::LogOn(std::string username, std::string password, std::string code) {
+void SteamClient::LogOn(const char* username, const char* password, const char* code) {
 	CMsgClientLogon logon;
 	logon.set_account_name(username);
 	logon.set_password(password);
 	logon.set_protocol_version(65575);
-	if (code.length()) {
+	if (code) {
 		logon.set_auth_code(code);
 	}
 	
@@ -82,7 +83,7 @@ void SteamClient::LeaveChat(SteamID chat) {
 	});
 }
 
-void SteamClient::SendChatMessage(SteamID chat, const std::string& message) {
+void SteamClient::SendChatMessage(SteamID chat, const char* message) {
 	// TODO: move this somwehre else
 	if (chat.type == static_cast<unsigned>(EAccountType::Clan))	{
 		// this is a ClanID - convert to its respective ChatID
@@ -90,14 +91,13 @@ void SteamClient::SendChatMessage(SteamID chat, const std::string& message) {
 		chat.type = static_cast<unsigned>(EAccountType::Chat);
 	}
 	
-	WriteMessage(EMsg::ClientChatMsg, false, sizeof(MsgClientChatMsg) + message.length() + 1, [&](unsigned char* buffer) {
+	WriteMessage(EMsg::ClientChatMsg, false, sizeof(MsgClientChatMsg) + std::strlen(message) + 1, [&](unsigned char* buffer) {
 		auto send_msg = new (buffer) MsgClientChatMsg;
 		send_msg->chatMsgType = static_cast<std::uint32_t>(EChatEntryType::ChatMsg);
 		send_msg->steamIdChatRoom = chat.steamID64;
 		send_msg->steamIdChatter = steamID.steamID64;
 		
-		std::copy(message.cbegin(), message.cend(), buffer + sizeof(MsgClientChatMsg));
-		buffer[sizeof(MsgClientChatMsg) + message.length()] = '\0';
+		std::strcpy(reinterpret_cast<char*>(buffer + sizeof(MsgClientChatMsg)), message);
 	});
 }
 

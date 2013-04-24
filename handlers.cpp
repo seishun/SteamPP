@@ -24,7 +24,7 @@ char public_key[] =
 
 using namespace Steam;
 
-void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_t length) {
+void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_t length, std::uint64_t job_id) {
 	switch (emsg) {
 	
 	case EMsg::ChannelEncryptRequest:

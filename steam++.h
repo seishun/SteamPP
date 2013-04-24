@@ -136,9 +136,15 @@ namespace Steam {
 		bool encrypted;
 		
 		void ReadMessage(const unsigned char* data, std::size_t length);
-		void HandleMessage(EMsg eMsg, const unsigned char* data, std::size_t length);
+		void HandleMessage(EMsg eMsg, const unsigned char* data, std::size_t length, std::uint64_t job_id);
 		
-		void WriteMessage(EMsg eMsg, bool isProto, std::size_t length, const std::function<void(unsigned char* buffer)> &fill);
+		void WriteMessage(
+			EMsg eMsg,
+			bool is_proto,
+			std::size_t length,
+			const std::function<void(unsigned char* buffer)> &fill,
+			std::uint64_t job_id = 0
+		);
 		void WritePacket(std::size_t length, const std::function<void(unsigned char* buffer)> &fill);
 	};
 }

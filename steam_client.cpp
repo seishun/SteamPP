@@ -166,8 +166,7 @@ void SteamClient::ReadMessage(const unsigned char* data, std::size_t length) {
 	// first figure out the header type
 	if (emsg == EMsg::ChannelEncryptRequest || emsg == EMsg::ChannelEncryptResult) {
 		auto header = reinterpret_cast<const MsgHdr*>(data);
-		// TODO: do something with header
-		HandleMessage(emsg, data + sizeof(MsgHdr), length - sizeof(MsgHdr));
+		HandleMessage(emsg, data + sizeof(MsgHdr), length - sizeof(MsgHdr), header->sourceJobID);
 	} else if (raw_emsg & PROTO_MASK) {
 		auto header = reinterpret_cast<const MsgHdrProtoBuf*>(data);
 		CMsgProtoBufHeader proto;
@@ -176,15 +175,25 @@ void SteamClient::ReadMessage(const unsigned char* data, std::size_t length) {
 			sessionID = proto.client_sessionid();
 			steamID = proto.steamid();
 		}
-		HandleMessage(emsg, data + sizeof(MsgHdrProtoBuf) + header->headerLength, length - sizeof(MsgHdrProtoBuf) - header->headerLength);
+		HandleMessage(
+			emsg,
+			data + sizeof(MsgHdrProtoBuf) + header->headerLength,
+			length - sizeof(MsgHdrProtoBuf) - header->headerLength,
+			proto.jobid_source()
+		);
 	} else {
 		auto header = reinterpret_cast<const ExtendedClientMsgHdr*>(data);
-		// TODO: you know
-		HandleMessage(emsg, data + sizeof(ExtendedClientMsgHdr), length - sizeof(ExtendedClientMsgHdr));
+		HandleMessage(emsg, data + sizeof(ExtendedClientMsgHdr), length - sizeof(ExtendedClientMsgHdr), header->sourceJobID);
 	}
 }
 
-void SteamClient::WriteMessage(EMsg emsg, bool is_proto, std::size_t length, const std::function<void(unsigned char* buffer)> &fill) {
+void SteamClient::WriteMessage(
+	EMsg emsg,
+	bool is_proto,
+	std::size_t length,
+	const std::function<void(unsigned char* buffer)> &fill,
+	std::uint64_t job_id
+) {
 	if (emsg == EMsg::ChannelEncryptResponse) {
 		WritePacket(sizeof(MsgHdr) + length, [emsg, &fill](unsigned char* buffer) {
 			auto header = new (buffer) MsgHdr;
@@ -195,6 +204,9 @@ void SteamClient::WriteMessage(EMsg emsg, bool is_proto, std::size_t length, con
 		CMsgProtoBufHeader proto;
 		proto.set_steamid(steamID.steamID64);
 		proto.set_client_sessionid(sessionID);
+		if (job_id) {
+			proto.set_jobid_target(job_id);
+		}
 		WritePacket(sizeof(MsgHdrProtoBuf) + proto.ByteSize() + length, [&proto, emsg, &fill](unsigned char* buffer) {
 			auto header = new (buffer) MsgHdrProtoBuf;
 			header->headerLength = proto.ByteSize();

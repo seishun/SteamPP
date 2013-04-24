@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "notify.h"
 #include "plugin.h"
+#include "request.h"
 #include "version.h"
 
 #include "steam++.h"
@@ -92,6 +93,22 @@ static void connect(PurpleAccount* account, SteamPurple* steam) {
 	}, steam);
 }
 
+static void steam_set_steam_guard_token_cb(gpointer data, const gchar* steam_guard_token) {
+	auto pc = reinterpret_cast<PurpleConnection*>(data);
+	auto account = purple_connection_get_account(pc);
+	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+	
+	purple_debug_info("steam", "Got token: %s\n", steam_guard_token);
+	connect(account, steam);
+	
+	std::string token(steam_guard_token);
+	steam->client.onHandshake = [steam, account, token] {
+		// we just copied the token twice (compiler optimizations notwithstanding) but this is the prettiest way to access it in the lambda
+		// yay for capture by move in C++14
+		steam->client.LogOn(purple_account_get_username(account), purple_account_get_password(account), nullptr, token.c_str());
+	};
+}
+
 static void steam_login(PurpleAccount* account) {
 	PurpleConnection* pc = purple_account_get_connection(account);
 	auto steam = new SteamPurple {
@@ -132,10 +149,17 @@ static void steam_login(PurpleAccount* account) {
 	pc->proto_data = steam;
 	
 	steam->client.onHandshake = [steam, account] {
-		steam->client.LogOn(purple_account_get_username(account), purple_account_get_password(account));
+		auto base64 = purple_account_get_string(account, "sentry_hash", nullptr);
+		if (base64) {
+			auto hash = purple_base64_decode(base64, NULL);
+			steam->client.LogOn(purple_account_get_username(account), purple_account_get_password(account), hash);
+			g_free(hash);
+		} else {
+			steam->client.LogOn(purple_account_get_username(account), purple_account_get_password(account));
+		}
 	};
 	
-	steam->client.onLogOn = [pc, steam](EResult result) {
+	steam->client.onLogOn = [account, pc, steam](EResult result) {
 		switch (result) {
 		case EResult::OK:
 			steam->client.SetPersonaState(EPersonaState::Online);
@@ -144,7 +168,24 @@ static void steam_login(PurpleAccount* account) {
 			purple_connection_set_display_name(pc, "You");
 			break;
 		case EResult::AccountLogonDenied:
-			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_AUTHENTICATION_FAILED, "This account uses Steam Guard which is not supported yet");
+			purple_request_input(
+				/* handle */        NULL,
+				/* title */         NULL,
+				/* primary */       "Set your Steam Guard Code",
+				/* secondary */     "Copy the Steam Guard Code you will have received in your email",
+				/* default_value */ NULL,
+				/* multiline */     FALSE,
+				/* masked */        FALSE,
+				/* hint */          "Steam Guard Code",
+				/* ok_text */       "OK",
+				/* ok_cb */         G_CALLBACK(steam_set_steam_guard_token_cb),
+				/* cancel_text */   "Cancel",
+				/* cancel_cb */     NULL,
+				/* account */       account,
+				/* who */           NULL,
+				/* conv */          NULL,
+				/* user_data */     pc
+			);
 			break;
 		case EResult::InvalidPassword:
 			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_AUTHENTICATION_FAILED, "Invalid password");
@@ -159,6 +200,12 @@ static void steam_login(PurpleAccount* account) {
 			purple_debug_error("steam", "Unknown eresult: %i\n", result);
 			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_OTHER_ERROR, "Unknown error");
 		}
+	};
+	
+	steam->client.onSentry = [account](const unsigned char hash[20]) {
+		auto base64 = purple_base64_encode(hash, 20);
+		purple_account_set_string(account, "sentry_hash", base64);
+		g_free(base64);
 	};
 	
 	steam->client.onChatEnter = [pc](SteamID room, EChatRoomEnterResponse response) {

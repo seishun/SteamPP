@@ -61,40 +61,41 @@ GList* steam_status_types(PurpleAccount* account) {
 	return types;
 }
 
+static void connect(PurpleAccount* account, SteamPurple* steam) {
+	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
+	purple_proxy_connect(NULL, account, endpoint.host.c_str(), endpoint.port, [](gpointer data, gint source, const gchar* error_message) {
+		// TODO: check source and error
+		assert(source != -1);
+		auto steam = reinterpret_cast<SteamPurple*>(data);
+		steam->fd = source;
+		auto next_length = steam->client.connected();
+		steam->read_buffer.resize(next_length);
+		purple_input_add(source, PURPLE_INPUT_READ, [](gpointer data, gint source, PurpleInputCondition cond) {
+			auto steam = reinterpret_cast<SteamPurple*>(data);
+			auto len = read(source, &steam->read_buffer[steam->read_offset], steam->read_buffer.size() - steam->read_offset);
+			purple_debug_info("steam", "read: %i\n", len);
+			assert(len != -1);
+			// len == 0: preceded by a ClientLoggedOff or ClientLogOnResponse, i.e. already handled
+			// len == -1: TODO
+			steam->read_offset += len;
+			if (steam->read_offset == steam->read_buffer.size()) {
+				auto next_len = steam->client.readable(steam->read_buffer.data());
+				steam->read_offset = 0;
+				steam->read_buffer.resize(next_len);
+			}
+		}, steam);
+	}, steam);
+}
+
 static void steam_login(PurpleAccount* account) {
 	PurpleConnection* pc = purple_account_get_connection(account);
 	auto steam = new SteamPurple {
 		// SteamClient constructor
 		{
-			// connect callback
 			// why use pc instead of steam directly?
 			// we can't take steam by value because the pointer is uninitialized at this point
 			// we can't take steam by reference because it'll go out of scope when steam_login returns
-			[account, pc](const std::string &host, std::uint16_t port) {
-				auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
-				purple_proxy_connect(NULL, account, host.c_str(), port, [](gpointer data, gint source, const gchar* error_message) {
-					// TODO: check source and error
-					assert(source != -1);
-					auto steam = reinterpret_cast<SteamPurple*>(data);
-					steam->fd = source;
-					auto next_length = steam->client.connected();
-					steam->read_buffer.resize(next_length);
-					purple_input_add(source, PURPLE_INPUT_READ, [](gpointer data, gint source, PurpleInputCondition cond) {
-						auto steam = reinterpret_cast<SteamPurple*>(data);
-						auto len = read(source, &steam->read_buffer[steam->read_offset], steam->read_buffer.size() - steam->read_offset);
-						purple_debug_info("steam", "read: %i\n", len);
-						assert(len != -1);
-						// len == 0: preceded by a ClientLoggedOff or ClientLogOnResponse, i.e. already handled
-						// len == -1: TODO
-						steam->read_offset += len;
-						if (steam->read_offset == steam->read_buffer.size()) {
-							auto next_len = steam->client.readable(steam->read_buffer.data());
-							steam->read_offset = 0;
-							steam->read_buffer.resize(next_len);
-						}
-					}, steam);
-				}, steam);
-			},
+			
 			// write callback
 			// we don't actually need account below. it's a workaround for #54947
 			// TODO: remove when Ubuntu ships with a newer GCC
@@ -107,6 +108,7 @@ static void steam_login(PurpleAccount* account) {
 				assert(len == steam->write_buffer.size());
 				// TODO: check len
 			},
+			
 			// set_interval callback
 			// same as above
 			[account, pc](std::function<void()> callback, int timeout) {
@@ -123,6 +125,10 @@ static void steam_login(PurpleAccount* account) {
 	};
 	
 	pc->proto_data = steam;
+	
+	steam->client.onHandshake = [steam, account] {
+		steam->client.LogOn(purple_account_get_username(account), purple_account_get_password(account));
+	};
 	
 	steam->client.onLogOn = [pc, steam](EResult result) {
 		switch (result) {
@@ -162,7 +168,7 @@ static void steam_login(PurpleAccount* account) {
 		serv_got_chat_in(pc, room.ID, std::to_string(chatter.steamID64).c_str(), PURPLE_MESSAGE_RECV, message.c_str(), time(NULL));
 	};
 	
-	steam->client.LogOn(account->username, account->password);
+	connect(account, steam);
 }
 
 static void steam_close(PurpleConnection* pc) {

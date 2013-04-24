@@ -11,84 +11,33 @@
 auto MAGIC = "VT01";
 auto PROTO_MASK = 0x80000000;
 
-struct {
-	std::string host;
-	std::uint16_t port;
-} servers[] = {
-	{ "72.165.61.174", 27017 },
-	{ "72.165.61.174", 27018 },
-	{ "72.165.61.175", 27017 },
-	{ "72.165.61.175", 27018 },
-	{ "72.165.61.176", 27017 },
-	{ "72.165.61.176", 27018 },
-	{ "72.165.61.185", 27017 },
-	{ "72.165.61.185", 27018 },
-	{ "72.165.61.187", 27017 },
-	{ "72.165.61.187", 27018 },
-	{ "72.165.61.188", 27017 },
-	{ "72.165.61.188", 27018 },
-	// Inteliquent, Luxembourg, cm-[01-04].lux.valve.net
-	{ "146.66.152.12", 27017 },
-	{ "146.66.152.12", 27018 },
-	{ "146.66.152.12", 27019 },
-	{ "146.66.152.13", 27017 },
-	{ "146.66.152.13", 27018 },
-	{ "146.66.152.13", 27019 },
-	{ "146.66.152.14", 27017 },
-	{ "146.66.152.14", 27018 },
-	{ "146.66.152.14", 27019 },
-	{ "146.66.152.15", 27017 },
-	{ "146.66.152.15", 27018 },
-	{ "146.66.152.15", 27019 },
-	/* Highwinds, Netherlands (not live)
-	{ "81.171.115.5", 27017 },
-	{ "81.171.115.5", 27018 },
-	{ "81.171.115.5", 27019 },
-	{ "81.171.115.6", 27017 },
-	{ "81.171.115.6", 27018 },
-	{ "81.171.115.6", 27019 },
-	{ "81.171.115.7", 27017 },
-	{ "81.171.115.7", 27018 },
-	{ "81.171.115.7", 27019 },
-	{ "81.171.115.8", 27017 },
-	{ "81.171.115.8", 27018 },
-	{ "81.171.115.8", 27019 },*/
-	// Highwinds, Kaysville
-	{ "209.197.29.196", 27017 },
-	{ "209.197.29.197", 27017 },
-	/* Starhub, Singapore (non-optimal route)
-	{ "103.28.54.10", 27017 },
-	{ "103.28.54.11", 27017 }*/
-};
-
 using namespace Steam;
 
 SteamID::SteamID(std::uint64_t steamID64) :
 	steamID64(steamID64) {}
 
 SteamClient::SteamClient(
-	std::function<void(const std::string& host, std::uint16_t port)> connect,
 	std::function<void(std::size_t length, std::function<void(unsigned char* buffer)> fill)> write,
 	std::function<void(std::function<void()> callback, int timeout)> set_interval
-) :
-	connect(std::move(connect)),
-	write(std::move(write)),
-	setInterval(std::move(set_interval))
-{
+) : write(std::move(write)), setInterval(std::move(set_interval)) {
 	steamID.instance = 1;
 	steamID.universe = static_cast<unsigned>(EUniverse::Public);
 	steamID.type = static_cast<unsigned>(EAccountType::Individual);
 }
 
 void SteamClient::LogOn(std::string username, std::string password, std::string code) {
-	this->username = std::move(username);
-	this->password = std::move(password);
+	CMsgClientLogon logon;
+	logon.set_account_name(username);
+	logon.set_password(password);
+	logon.set_protocol_version(65575);
 	if (code.length()) {
-		this->code = std::move(code);
+		logon.set_auth_code(code);
 	}
 	
-	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
-	connect(endpoint.host, endpoint.port);
+	auto size = logon.ByteSize();
+	WriteMessage(EMsg::ClientLogon, true, size, [&logon, size](unsigned char* buffer) {
+		logon.SerializeToArray(buffer, size);
+	});
 }
 
 void SteamClient::SetPersonaState(EPersonaState state) {

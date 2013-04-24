@@ -3,6 +3,56 @@
 #include "steam_language/steam_language.h"
 
 namespace Steam {
+	const struct {
+		std::string host;
+		std::uint16_t port;
+	} servers[] = {
+		{ "72.165.61.174", 27017 },
+		{ "72.165.61.174", 27018 },
+		{ "72.165.61.175", 27017 },
+		{ "72.165.61.175", 27018 },
+		{ "72.165.61.176", 27017 },
+		{ "72.165.61.176", 27018 },
+		{ "72.165.61.185", 27017 },
+		{ "72.165.61.185", 27018 },
+		{ "72.165.61.187", 27017 },
+		{ "72.165.61.187", 27018 },
+		{ "72.165.61.188", 27017 },
+		{ "72.165.61.188", 27018 },
+		// Inteliquent, Luxembourg, cm-[01-04].lux.valve.net
+		{ "146.66.152.12", 27017 },
+		{ "146.66.152.12", 27018 },
+		{ "146.66.152.12", 27019 },
+		{ "146.66.152.13", 27017 },
+		{ "146.66.152.13", 27018 },
+		{ "146.66.152.13", 27019 },
+		{ "146.66.152.14", 27017 },
+		{ "146.66.152.14", 27018 },
+		{ "146.66.152.14", 27019 },
+		{ "146.66.152.15", 27017 },
+		{ "146.66.152.15", 27018 },
+		{ "146.66.152.15", 27019 },
+		/* Highwinds, Netherlands (not live)
+		{ "81.171.115.5", 27017 },
+		{ "81.171.115.5", 27018 },
+		{ "81.171.115.5", 27019 },
+		{ "81.171.115.6", 27017 },
+		{ "81.171.115.6", 27018 },
+		{ "81.171.115.6", 27019 },
+		{ "81.171.115.7", 27017 },
+		{ "81.171.115.7", 27018 },
+		{ "81.171.115.7", 27019 },
+		{ "81.171.115.8", 27017 },
+		{ "81.171.115.8", 27018 },
+		{ "81.171.115.8", 27019 },*/
+		// Highwinds, Kaysville
+		{ "209.197.29.196", 27017 },
+		{ "209.197.29.197", 27017 },
+		/* Starhub, Singapore (non-optimal route)
+		{ "103.28.54.10", 27017 },
+		{ "103.28.54.11", 27017 }*/
+	};
+	
 	struct SteamID {
 		SteamID(std::uint64_t = 0);
 		
@@ -20,10 +70,6 @@ namespace Steam {
 	class SteamClient {
 	public:
 		SteamClient(
-			// called when SteamClient wants to make a connection
-			// call `connected()` once the connection has been established
-			std::function<void(const std::string& host, std::uint16_t port)> connect,
-			
 			// called when SteamClient wants to send some data over the socket
 			// allocate a buffer of `length` bytes, then call `fill` with it, then send it
 			std::function<void(std::size_t length, std::function<void(unsigned char* buffer)> fill)> write,
@@ -46,6 +92,10 @@ namespace Steam {
 		
 		
 		/* signals */
+		
+		// encryption handshake complete
+		// it's now safe to log on
+		std::function<void()> onHandshake;
 		
 		// logon response received
 		// EResult::OK means the logon was successful
@@ -75,13 +125,8 @@ namespace Steam {
 		void SendChatMessage(SteamID chat, const std::string& message);
 		
 	private:
-		std::function<void(const std::string& host, std::uint16_t port)> connect;
 		std::function<void(std::size_t length, std::function<void(unsigned char* buffer)> fill)> write;
 		std::function<void(std::function<void()> callback, int timeout)> setInterval;
-		
-		std::string username;
-		std::string password;
-		std::string code;
 		
 		SteamID steamID;
 		std::int32_t sessionID;

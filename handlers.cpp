@@ -68,18 +68,9 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			
 			encrypted = true;
 			
-			CMsgClientLogon logon;
-			logon.set_account_name(username);
-			logon.set_password(password);
-			logon.set_protocol_version(65575);
-			if (code.length()) {
-				logon.set_auth_code(code);
+			if (onHandshake) {
+				onHandshake();
 			}
-			
-			auto size = logon.ByteSize();
-			WriteMessage(EMsg::ClientLogon, true, size, [&logon, size](unsigned char* buffer) {
-				logon.SerializeToArray(buffer, size);
-			});
 		}
 		
 		break;

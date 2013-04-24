@@ -56,6 +56,9 @@ if (LIBUV_FOUND)
 	)
 endif()
 
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+	set_target_properties(steam++ PROPERTIES COMPILE_FLAGS "-fPIC")
+endif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
 
 # libpurple plugin
 

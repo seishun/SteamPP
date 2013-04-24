@@ -73,7 +73,12 @@ SteamClient::SteamClient(
 ) :
 	connect(std::move(connect)),
 	write(std::move(write)),
-	setInterval(std::move(set_interval)) { }
+	setInterval(std::move(set_interval))
+{
+	steamID.instance = 1;
+	steamID.universe = static_cast<unsigned>(EUniverse::Public);
+	steamID.type = static_cast<unsigned>(EAccountType::Individual);
+}
 
 void SteamClient::LogOn(std::string username, std::string password, std::string code) {
 	this->username = std::move(username);
@@ -81,10 +86,6 @@ void SteamClient::LogOn(std::string username, std::string password, std::string 
 	if (code.length()) {
 		this->code = std::move(code);
 	}
-	
-	steamID.instance = 1;
-	steamID.universe = static_cast<unsigned>(EUniverse::Public);
-	steamID.type = static_cast<unsigned>(EAccountType::Individual);
 	
 	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
 	connect(endpoint.host, endpoint.port);

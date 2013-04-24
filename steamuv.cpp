@@ -66,7 +66,7 @@ int main() {
 	});
 	
 	client.onHandshake = [] {
-		client.LogOn("username", "password", "optional code");
+		client.LogOn("username", "password", nullptr, "optional code");
 	};
 	
 	client.onLogOn = [](EResult result) {

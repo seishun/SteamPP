@@ -152,6 +152,30 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 		
 		break;
 		
+	case EMsg::ClientUpdateMachineAuth:
+		{
+			if (!onSentry) {
+				return;
+			}
+			
+			CMsgClientUpdateMachineAuth machine_auth;
+			machine_auth.ParseFromArray(data, length);
+			auto &bytes = machine_auth.bytes();
+			
+			auto sha = SHA1(reinterpret_cast<const unsigned char*>(&bytes[0]), bytes.length(), NULL);
+			
+			CMsgClientUpdateMachineAuthResponse response;
+			response.set_sha_file(sha, 20);
+			auto size = response.ByteSize();
+			WriteMessage(EMsg::ClientUpdateMachineAuthResponse, true, size, [&response, size](unsigned char *buffer) {
+				response.SerializeToArray(buffer, size);
+			}, job_id);
+			
+			onSentry(sha);
+		}
+		
+		break;
+		
 	case EMsg::ClientChatMsg:
 		{
 			if (!onChatMsg)

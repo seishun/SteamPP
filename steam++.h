@@ -101,6 +101,10 @@ namespace Steam {
 		// anything else is an error and Steam should close the socket imminently
 		std::function<void(EResult result)> onLogOn;
 		
+		// if LogOn was called without a hash, this is your new hash
+		// you should save it and use it for your further logons - it will not expire unlike the code
+		std::function<void(const unsigned char hash[20])> onSentry;
+		
 		// should be called in response to `JoinChat`
 		// anything other than `EChatRoomEnterResponse::Success` denotes an error
 		std::function<void(SteamID room, EChatRoomEnterResponse response)> onChatEnter;
@@ -108,10 +112,25 @@ namespace Steam {
 		// a message has been received in a chat
 		std::function<void(SteamID room, SteamID chatter, const char* message)> onChatMsg;
 		
+		
 		/* methods */
-
-		// optionally, `code` is your Steam Guard code
-		void LogOn(const char* username, const char* password, const char* code = nullptr);
+		
+		// call this after the encryption handshake (see onHandshake)
+		void LogOn(
+			const char* username,
+			const char* password,
+			
+			// if your account uses Steam Guard, you should provide at least one of the below:
+			
+			// your sentry file hash (see onSentry)
+			// if you have previously logged into another account, you can reuse its hash
+			// otherwise, pass nullptr
+			const unsigned char hash[20] = nullptr,
+			
+			// required if you are logging into this account for the first time
+			// if not provided, onLogOn will get EResult::AccountLogonDenied and you will receive an email with the code
+			const char* code = nullptr
+		);
 		
 		// you'll want to call this with EPersonaState::Online upon logon to become visible
 		void SetPersonaState(EPersonaState state);

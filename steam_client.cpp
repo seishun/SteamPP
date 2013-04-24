@@ -26,11 +26,14 @@ SteamClient::SteamClient(
 	steamID.type = static_cast<unsigned>(EAccountType::Individual);
 }
 
-void SteamClient::LogOn(const char* username, const char* password, const char* code) {
+void SteamClient::LogOn(const char* username, const char* password, const unsigned char hash[20], const char* code) {
 	CMsgClientLogon logon;
 	logon.set_account_name(username);
 	logon.set_password(password);
 	logon.set_protocol_version(65575);
+	if (hash) {
+		logon.set_sha_sentryfile(hash, 20);
+	}
 	if (code) {
 		logon.set_auth_code(code);
 	}

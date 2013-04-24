@@ -24,6 +24,7 @@ struct SteamPurple {
 	std::vector<unsigned char> read_buffer;
 	std::vector<unsigned char> write_buffer;
 	std::vector<unsigned char>::size_type read_offset;
+	guint watcher;
 	
 	guint timer;
 	std::function<void()> callback;
@@ -71,13 +72,16 @@ static void connect(PurpleAccount* account, SteamPurple* steam) {
 		steam->fd = source;
 		auto next_length = steam->client.connected();
 		steam->read_buffer.resize(next_length);
-		purple_input_add(source, PURPLE_INPUT_READ, [](gpointer data, gint source, PurpleInputCondition cond) {
+		steam->watcher = purple_input_add(source, PURPLE_INPUT_READ, [](gpointer data, gint source, PurpleInputCondition cond) {
 			auto steam = reinterpret_cast<SteamPurple*>(data);
 			auto len = read(source, &steam->read_buffer[steam->read_offset], steam->read_buffer.size() - steam->read_offset);
 			purple_debug_info("steam", "read: %i\n", len);
-			assert(len != -1);
-			// len == 0: preceded by a ClientLoggedOff or ClientLogOnResponse, i.e. already handled
-			// len == -1: TODO
+			if (len == 0) {
+				// preceded by a ClientLoggedOff or ClientLogOnResponse, i.e. already handled
+				close(steam->fd);
+				purple_input_remove(steam->watcher);
+			}
+			assert(len != -1); // TODO
 			steam->read_offset += len;
 			if (steam->read_offset == steam->read_buffer.size()) {
 				auto next_len = steam->client.readable(steam->read_buffer.data());
@@ -177,6 +181,7 @@ static void steam_close(PurpleConnection* pc) {
 	purple_debug_info("steam", "Closing...\n");
 	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
 	close(steam->fd);
+	purple_input_remove(steam->watcher);
 	purple_timeout_remove(steam->timer);
 	delete steam;
 }

@@ -73,9 +73,7 @@ SteamClient::SteamClient(
 ) :
 	connect(std::move(connect)),
 	write(std::move(write)),
-	setInterval(std::move(set_interval)),
-	packetLength(0),
-	encrypted(false) { }
+	setInterval(std::move(set_interval)) { }
 
 void SteamClient::LogOn(std::string username, std::string password, std::string code) {
 	this->username = std::move(username);
@@ -155,6 +153,12 @@ void SteamClient::SendChatMessage(SteamID chat, const std::string& message) {
 
 std::size_t SteamClient::connected() {
 	std::cout << "Connected!" << std::endl; // TEMPORARY
+	
+	steamID.ID = 0;
+	sessionID = 0;
+	packetLength = 0;
+	encrypted = false;
+	
 	return 8;
 }
 

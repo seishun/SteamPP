@@ -248,19 +248,19 @@ static GList* steam_chat_info(PurpleConnection* gc) {
 void steam_join_chat(PurpleConnection* pc, GHashTable* components) {
 	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
 	auto steamID_string = reinterpret_cast<const gchar*>(g_hash_table_lookup(components, "steamID"));
-	steam->client.JoinChat(atoll(steamID_string));
+	steam->client.JoinChat(std::stoull(steamID_string));
 }
 
 void steam_chat_leave(PurpleConnection* pc, int id) {
 	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
-	steam->client.LeaveChat(atoll(purple_conversation_get_name(purple_find_chat(pc, id))));
+	steam->client.LeaveChat(std::stoull(purple_conversation_get_name(purple_find_chat(pc, id))));
 }
 
 int steam_chat_send(PurpleConnection* pc, int id, const char* message, PurpleMessageFlags flags) {
 	SteamPurple* steam = (SteamPurple* )pc->proto_data;
 	
 	// can't reliably reconstruct a full SteamID from an account ID
-	steam->client.SendChatMessage(atoll(purple_conversation_get_name(purple_find_chat(pc, id))), message);
+	steam->client.SendChatMessage(std::stoull(purple_conversation_get_name(purple_find_chat(pc, id))), message);
 	
 	// the message doesn't get echoed automatically
 	serv_got_chat_in(pc, id, purple_connection_get_display_name(pc), PURPLE_MESSAGE_SEND, message, time(NULL));

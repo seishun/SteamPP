@@ -159,13 +159,12 @@ static void steam_login(PurpleAccount* account) {
 		}
 	};
 	
-	steam->client.onLogOn = [account, pc, steam](EResult result) {
+	steam->client.onLogOn = [account, pc, steam](EResult result, SteamID steamID) {
 		switch (result) {
 		case EResult::OK:
 			steam->client.SetPersonaState(EPersonaState::Online);
 			purple_connection_set_state(pc, PURPLE_CONNECTED);
-			// TODO: use something meaningful like a steamid
-			purple_connection_set_display_name(pc, "You");
+			purple_connection_set_display_name(pc, std::to_string(steamID).c_str());
 			break;
 		case EResult::AccountLogonDenied:
 			purple_request_input(

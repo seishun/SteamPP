@@ -136,7 +136,7 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			auto interval = logon_resp.out_of_game_heartbeat_seconds();
 			
 			if (onLogOn) {
-				onLogOn(eresult);
+				onLogOn(eresult, steamID);
 			}
 			
 			if (eresult == EResult::OK) {

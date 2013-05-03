@@ -69,7 +69,7 @@ int main() {
 		client.LogOn("username", "password", nullptr, "optional code");
 	};
 	
-	client.onLogOn = [](EResult result) {
+	client.onLogOn = [](EResult result, SteamID steamID) {
 		if (result == EResult::OK) {
 			std::cout << "logged on!" << std::endl;
 			client.SetPersonaState(EPersonaState::Online);

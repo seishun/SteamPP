@@ -100,7 +100,8 @@ namespace Steam {
 		// logon response received
 		// EResult::OK means the logon was successful
 		// anything else is an error and Steam should close the socket imminently
-		std::function<void(EResult result)> onLogOn;
+		// steamID is your SteamID
+		std::function<void(EResult result, SteamID steamID)> onLogOn;
 		
 		// if LogOn was called without a hash, this is your new hash
 		// you should save it and use it for your further logons - it will not expire unlike the code

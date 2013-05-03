@@ -54,6 +54,7 @@ namespace Steam {
 	
 	struct SteamID {
 		SteamID(std::uint64_t = 0);
+		operator std::uint64_t();
 		
 		union {
 			struct {

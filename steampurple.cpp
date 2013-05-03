@@ -210,14 +210,14 @@ static void steam_login(PurpleAccount* account) {
 	
 	steam->client.onChatEnter = [pc](SteamID room, EChatRoomEnterResponse response) {
 		if (response == EChatRoomEnterResponse::Success) {
-			serv_got_joined_chat(pc, room.ID, std::to_string(room.steamID64).c_str());
+			serv_got_joined_chat(pc, room.ID, std::to_string(room).c_str());
 		} else {
 			// TODO
 		}
 	};
 	
 	steam->client.onChatMsg = [pc](SteamID room, SteamID chatter, std::string message) {
-		serv_got_chat_in(pc, room.ID, std::to_string(chatter.steamID64).c_str(), PURPLE_MESSAGE_RECV, message.c_str(), time(NULL));
+		serv_got_chat_in(pc, room.ID, std::to_string(chatter).c_str(), PURPLE_MESSAGE_RECV, message.c_str(), time(NULL));
 	};
 	
 	connect(account, steam);

@@ -17,6 +17,10 @@ using namespace Steam;
 SteamID::SteamID(std::uint64_t steamID64) :
 	steamID64(steamID64) {}
 
+SteamID::operator std::uint64_t() {
+	return steamID64;
+}
+
 SteamClient::SteamClient(
 	std::function<void(std::size_t length, std::function<void(unsigned char* buffer)> fill)> write,
 	std::function<void(std::function<void()> callback, int timeout)> set_interval
@@ -62,7 +66,7 @@ void SteamClient::JoinChat(SteamID chat) {
 	
 	WriteMessage(EMsg::ClientJoinChat, false, sizeof(MsgClientJoinChat), [&chat](unsigned char* buffer) {
 		auto join_chat = new (buffer) MsgClientJoinChat;
-		join_chat->steamIdChat = chat.steamID64;
+		join_chat->steamIdChat = chat;
 	});
 }
 
@@ -76,13 +80,13 @@ void SteamClient::LeaveChat(SteamID chat) {
 	
 	WriteMessage(EMsg::ClientChatMemberInfo, false, sizeof(MsgClientChatMemberInfo) + 20, [&](unsigned char* buffer) {
 		auto leave_chat = new (buffer) MsgClientChatMemberInfo;
-		leave_chat->steamIdChat = chat.steamID64;
+		leave_chat->steamIdChat = chat;
 		leave_chat->type = static_cast<unsigned>(EChatInfoType::StateChange);
 		
 		auto payload = buffer + sizeof(MsgClientChatMemberInfo);
-		*reinterpret_cast<std::uint64_t*>(payload) = steamID.steamID64; // chatter_acted_on
+		*reinterpret_cast<std::uint64_t*>(payload) = steamID; // chatter_acted_on
 		*reinterpret_cast<EChatMemberStateChange*>(payload + 8) = EChatMemberStateChange::Left; // state_change
-		*reinterpret_cast<std::uint64_t*>(payload + 8 + 4) = steamID.steamID64; // chatter_acted_by
+		*reinterpret_cast<std::uint64_t*>(payload + 8 + 4) = steamID; // chatter_acted_by
 	});
 }
 
@@ -97,8 +101,8 @@ void SteamClient::SendChatMessage(SteamID chat, const char* message) {
 	WriteMessage(EMsg::ClientChatMsg, false, sizeof(MsgClientChatMsg) + std::strlen(message) + 1, [&](unsigned char* buffer) {
 		auto send_msg = new (buffer) MsgClientChatMsg;
 		send_msg->chatMsgType = static_cast<std::uint32_t>(EChatEntryType::ChatMsg);
-		send_msg->steamIdChatRoom = chat.steamID64;
-		send_msg->steamIdChatter = steamID.steamID64;
+		send_msg->steamIdChatRoom = chat;
+		send_msg->steamIdChatter = steamID;
 		
 		std::strcpy(reinterpret_cast<char*>(buffer + sizeof(MsgClientChatMsg)), message);
 	});
@@ -205,7 +209,7 @@ void SteamClient::WriteMessage(
 		});
 	} else if (is_proto) {
 		CMsgProtoBufHeader proto;
-		proto.set_steamid(steamID.steamID64);
+		proto.set_steamid(steamID);
 		proto.set_client_sessionid(sessionID);
 		if (job_id) {
 			proto.set_jobid_target(job_id);
@@ -222,7 +226,7 @@ void SteamClient::WriteMessage(
 			auto header = new (buffer) ExtendedClientMsgHdr;
 			header->msg = static_cast<std::uint32_t>(emsg);
 			header->sessionID = sessionID;
-			header->steamID = steamID.steamID64;
+			header->steamID = steamID;
 			fill(buffer + sizeof(ExtendedClientMsgHdr));
 		});
 	}

@@ -207,6 +207,26 @@ static void steam_login(PurpleAccount* account) {
 		g_free(base64);
 	};
 	
+	steam->client.onUserInfo = [pc, account](SteamID user, SteamID source, const char* name) {
+		if (static_cast<EAccountType>(source.type) == EAccountType::Chat) {
+			// either we're joining a chat or something is happening in a chat
+			
+			// create a dummy group to store aliases if it doesn't exist yet
+			auto group = purple_group_new(std::to_string(source).c_str());
+			
+			auto user_id = std::to_string(user);
+			if (!purple_find_buddy_in_group(account, user_id.c_str(), group)) {
+				// someone new to this chat
+				purple_blist_add_buddy(purple_buddy_new(account, user_id.c_str(), NULL), NULL, group, NULL);
+			}
+			serv_got_alias(pc, user_id.c_str(), name);
+			
+		} else if (source == 0 && user == std::stoull(purple_connection_get_display_name(pc))) {
+			// our own info
+			purple_account_set_alias(account, name);
+		}
+	};
+	
 	steam->client.onChatEnter = [pc](SteamID room, EChatRoomEnterResponse response) {
 		if (response == EChatRoomEnterResponse::Success) {
 			serv_got_joined_chat(pc, room.ID, std::to_string(room).c_str());

@@ -67,6 +67,50 @@ namespace Steam {
 		};
 	};
 	
+#pragma pack(push, 1)
+	struct ChatMember {
+	private:
+		enum Type : char {
+			None = 0,
+		    String = 1,
+		    Int32 = 2,
+		    Float32 = 3,
+		    Pointer = 4,
+		    WideString = 5,
+		    Color = 6,
+		    UInt64 = 7,
+		    End = 8
+		};
+		
+		Type None_;
+		char MessageObject_[sizeof("MessageObject")];
+		
+		Type UInt64_;
+		char steamid_[sizeof("steamid")];
+		
+	public:
+		SteamID steamID;
+		
+	private:
+		Type Int32_;
+		char Permissions_[sizeof("Permissions")];
+		
+	public:
+		EChatPermission permissions;
+		
+	private:
+		Type Int32__;
+		char Details_[sizeof("Details")];
+		
+	public:
+		EClanPermission rank;
+		
+	private:
+		Type End_;
+		Type End__;
+	};
+#pragma pack(pop)
+	
 	class SteamClient {
 	public:
 		SteamClient(
@@ -118,7 +162,13 @@ namespace Steam {
 		
 		// should be called in response to `JoinChat`
 		// anything other than `EChatRoomEnterResponse::Success` denotes an error
-		std::function<void(SteamID room, EChatRoomEnterResponse response)> onChatEnter;
+		std::function<void(
+			SteamID room,
+			EChatRoomEnterResponse response,
+			const char* name,
+			std::size_t member_count,
+			const ChatMember members[]
+		)> onChatEnter;
 		
 		// a message has been received in a chat
 		std::function<void(SteamID room, SteamID chatter, const char* message)> onChatMsg;

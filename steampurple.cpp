@@ -227,9 +227,16 @@ static void steam_login(PurpleAccount* account) {
 		}
 	};
 	
-	steam->client.onChatEnter = [pc](SteamID room, EChatRoomEnterResponse response) {
+	steam->client.onChatEnter = [pc](
+		SteamID room,
+		EChatRoomEnterResponse response,
+		const char* name,
+		std::size_t member_count,
+		const ChatMember members[]
+	) {
 		if (response == EChatRoomEnterResponse::Success) {
-			serv_got_joined_chat(pc, room.ID, std::to_string(room).c_str());
+			auto convo = serv_got_joined_chat(pc, room.ID, std::to_string(room).c_str());
+			purple_conversation_set_title(convo, name);
 		} else {
 			// TODO
 		}

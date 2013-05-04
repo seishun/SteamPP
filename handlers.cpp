@@ -224,9 +224,20 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 				return;
 			
 			auto msg = reinterpret_cast<const MsgClientChatEnter*>(data);
-			onChatEnter(msg->steamIdChat, static_cast<EChatRoomEnterResponse>(msg->enterResponse));
+			auto member_count = *reinterpret_cast<const std::uint32_t*>(data + sizeof(MsgClientChatEnter));
+			auto chat_name = reinterpret_cast<const char*>(data + sizeof(MsgClientChatEnter) + 4);
 			
-			// TODO: parse the payload
+			// fast-forward to the first byte after the name
+			auto members = chat_name;
+			while (*members++);
+			
+			onChatEnter(
+				msg->steamIdChat,
+				static_cast<EChatRoomEnterResponse>(msg->enterResponse),
+				chat_name,
+				member_count,
+				reinterpret_cast<const ChatMember*>(members)
+			);
 		}
 		
 		break;

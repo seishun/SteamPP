@@ -17,7 +17,7 @@ using namespace Steam;
 SteamID::SteamID(std::uint64_t steamID64) :
 	steamID64(steamID64) {}
 
-SteamID::operator std::uint64_t() {
+SteamID::operator std::uint64_t() const {
 	return steamID64;
 }
 

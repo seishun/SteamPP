@@ -107,6 +107,15 @@ namespace Steam {
 		// you should save it and use it for your further logons - it will not expire unlike the code
 		std::function<void(const unsigned char hash[20])> onSentry;
 		
+		// Steam is sending information about a user, possibly triggered by a change
+		// source is the reason Steam is sending this - depending on static_cast<EAccountType>(source.type):
+		// EAccountType::Chat: user shares a chat with you; source is the chat's ID
+		// EAccountType::Clan: user shares a small group with you; source is the group's ID
+		// EAccountType::Invalid: user is your (potential) friend or you; source is zero
+		// name is the user's new profile name
+		// more parameters to be added
+		std::function<void(SteamID user, SteamID source, const char* name)> onUserInfo;
+		
 		// should be called in response to `JoinChat`
 		// anything other than `EChatRoomEnterResponse::Success` denotes an error
 		std::function<void(SteamID room, EChatRoomEnterResponse response)> onChatEnter;

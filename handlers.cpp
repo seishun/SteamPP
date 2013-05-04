@@ -176,6 +176,24 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 		
 		break;
 		
+	case EMsg::ClientPersonaState:
+		{
+			if (!onUserInfo) {
+				return;
+			}
+			
+			CMsgClientPersonaState state;
+			state.ParseFromArray(data, length);
+			
+			// although it's a repeated field, Steam always sends one friend per message
+			assert(state.friends_size() == 1);
+			auto &user = state.friends(0);
+			
+			onUserInfo(user.friendid(), user.steamid_source(), user.player_name().c_str());
+		}
+		
+		break;
+		
 	case EMsg::ClientChatMsg:
 		{
 			if (!onChatMsg)

@@ -241,5 +241,27 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 		}
 		
 		break;
+		
+	case EMsg::ClientChatMemberInfo:
+		{
+			if (!onChatStateChange)
+				return;
+			
+			auto member_info = reinterpret_cast<const MsgClientChatMemberInfo*>(data);
+			
+			if (static_cast<EChatInfoType>(member_info->type) != EChatInfoType::StateChange)
+				return; // TODO
+			
+			auto payload = data + sizeof(MsgClientChatMemberInfo);
+			
+			auto acted_on = *reinterpret_cast<const SteamID*>(payload);
+			auto state_change = *reinterpret_cast<const EChatMemberStateChange*>(payload + 8);
+			auto acted_by = *reinterpret_cast<const SteamID*>(payload + 8 + 4);
+			auto member = reinterpret_cast<const ChatMember*>(payload + 8 + 4 + 8);
+			
+			onChatStateChange(member_info->steamIdChat, acted_by, acted_on, state_change, member);
+		}
+		
+		break;
 	}
 }

@@ -155,7 +155,7 @@ namespace Steam {
 		// source is the reason Steam is sending this - depending on static_cast<EAccountType>(source.type):
 		// EAccountType::Chat: user shares a chat with you; source is the chat's ID
 		// EAccountType::Clan: user shares a small group with you; source is the group's ID
-		// EAccountType::Invalid: user is your (potential) friend or you; source is zero
+		// EAccountType::Invalid: user is your (potential) friend; source is zero
 		// name is the user's new profile name
 		// more parameters to be added
 		std::function<void(SteamID user, SteamID source, const char* name)> onUserInfo;
@@ -169,6 +169,15 @@ namespace Steam {
 			std::size_t member_count,
 			const ChatMember members[]
 		)> onChatEnter;
+		
+		// something has happened in a chat you are in
+		std::function<void(
+			SteamID room,
+			SteamID acted_by,
+			SteamID acted_on,
+			EChatMemberStateChange state_change,
+			const ChatMember* member // invalid unless state_change == EChatMemberStateChange::Entered
+		)> onChatStateChange;
 		
 		// a message has been received in a chat
 		std::function<void(SteamID room, SteamID chatter, const char* message)> onChatMsg;

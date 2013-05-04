@@ -253,7 +253,7 @@ static void steam_login(PurpleAccount* account) {
 		}
 	};
 	
-	steam->client.onChatStateChange = [pc](
+	steam->client.onChatStateChange = [account, pc](
 		SteamID room,
 		SteamID acted_by,
 		SteamID acted_on,
@@ -268,10 +268,19 @@ static void steam_login(PurpleAccount* account) {
 		} else {
 			// TODO: print reason
 			if (acted_on == std::stoull(purple_connection_get_display_name(pc))) {
-				// we got kicked
+				// we got kicked or banned
 				serv_got_chat_left(pc, room.ID);
 			} else {
-				purple_conv_chat_remove_user(chat, std::to_string(acted_on).c_str(), NULL);
+				auto user_id = std::to_string(acted_on);
+				purple_conv_chat_remove_user(chat, user_id.c_str(), NULL);
+				
+				// remove the respective buddy
+				auto group_buddy = purple_find_buddy_in_group(
+					account,
+					user_id.c_str(),
+					purple_find_group(purple_conversation_get_name(convo))
+				);
+				purple_blist_remove_buddy(group_buddy);
 			}
 		}
 	};
@@ -313,8 +322,30 @@ void steam_join_chat(PurpleConnection* pc, GHashTable* components) {
 }
 
 void steam_chat_leave(PurpleConnection* pc, int id) {
+	auto chat = purple_find_chat(pc, id);
+	auto chat_name = purple_conversation_get_name(chat);
+	
 	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
-	steam->client.LeaveChat(std::stoull(purple_conversation_get_name(purple_find_chat(pc, id))));
+	steam->client.LeaveChat(std::stoull(chat_name));
+	
+	// clear the alias storage group
+	// despite what the docs imply, you can't remove a non-empty group
+	// you can't get the list of buddies in a group either
+	
+	auto users = purple_conv_chat_get_users(purple_conversation_get_chat_data(chat));
+	
+	g_list_foreach(users, [](gpointer data, gpointer user_data) {
+		auto chat_buddy = reinterpret_cast<PurpleConvChatBuddy*>(data);
+		auto chat = reinterpret_cast<PurpleConversation*>(user_data);
+		auto group_buddy = purple_find_buddy_in_group(
+			purple_conversation_get_account(chat),
+			purple_conv_chat_cb_get_name(chat_buddy),
+			purple_find_group(purple_conversation_get_name(chat))
+		);
+		purple_blist_remove_buddy(group_buddy);
+	}, chat);
+	
+	purple_blist_remove_group(purple_find_group(chat_name));
 }
 
 int steam_chat_send(PurpleConnection* pc, int id, const char* message, PurpleMessageFlags flags) {

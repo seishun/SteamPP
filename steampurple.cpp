@@ -237,13 +237,47 @@ static void steam_login(PurpleAccount* account) {
 		if (response == EChatRoomEnterResponse::Success) {
 			auto convo = serv_got_joined_chat(pc, room.ID, std::to_string(room).c_str());
 			purple_conversation_set_title(convo, name);
+			auto chat = purple_conversation_get_chat_data(convo);
+			
+			while (member_count--) {
+				purple_conv_chat_add_user(
+					chat,
+					std::to_string(members[member_count].steamID).c_str(),
+					NULL,
+					PURPLE_CBFLAGS_NONE, // TODO
+					FALSE
+				);
+			}
 		} else {
 			// TODO
 		}
 	};
 	
-	steam->client.onChatMsg = [pc](SteamID room, SteamID chatter, std::string message) {
-		serv_got_chat_in(pc, room.ID, std::to_string(chatter).c_str(), PURPLE_MESSAGE_RECV, message.c_str(), time(NULL));
+	steam->client.onChatStateChange = [pc](
+		SteamID room,
+		SteamID acted_by,
+		SteamID acted_on,
+		EChatMemberStateChange state_change,
+		const ChatMember* member
+	) {
+		auto convo = purple_find_chat(pc, room.ID);
+		auto chat = purple_conversation_get_chat_data(convo);
+		
+		if (state_change == EChatMemberStateChange::Entered) {
+			purple_conv_chat_add_user(chat, std::to_string(acted_on).c_str(), NULL, PURPLE_CBFLAGS_NONE, TRUE);
+		} else {
+			// TODO: print reason
+			if (acted_on == std::stoull(purple_connection_get_display_name(pc))) {
+				// we got kicked
+				serv_got_chat_left(pc, room.ID);
+			} else {
+				purple_conv_chat_remove_user(chat, std::to_string(acted_on).c_str(), NULL);
+			}
+		}
+	};
+	
+	steam->client.onChatMsg = [pc](SteamID room, SteamID chatter, const char* message) {
+		serv_got_chat_in(pc, room.ID, std::to_string(chatter).c_str(), PURPLE_MESSAGE_RECV, message, time(NULL));
 	};
 	
 	connect(account, steam);

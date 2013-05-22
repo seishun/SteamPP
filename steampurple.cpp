@@ -1,8 +1,14 @@
 #include <cassert>
+#include <memory>
 #include <string>
 #include <vector>
 
+// unistd.h is broken in MinGW
+#ifdef _WIN32
+#include <win32/win32dep.h>
+#else
 #include <unistd.h>
+#endif
 
 #define PURPLE_PLUGINS
 
@@ -64,7 +70,7 @@ GList* steam_status_types(PurpleAccount* account) {
 	return types;
 }
 
-static void connect(PurpleAccount* account, SteamPurple* steam) {
+static void steam_connect(PurpleAccount* account, SteamPurple* steam) {
 	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
 	purple_proxy_connect(NULL, account, endpoint.host, endpoint.port, [](gpointer data, gint source, const gchar* error_message) {
 		// TODO: check source and error
@@ -99,7 +105,7 @@ static void steam_set_steam_guard_token_cb(gpointer data, const gchar* steam_gua
 	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
 	
 	purple_debug_info("steam", "Got token: %s\n", steam_guard_token);
-	connect(account, steam);
+	steam_connect(account, steam);
 	
 	std::string token(steam_guard_token);
 	steam->client.onHandshake = [steam, account, token] {
@@ -164,7 +170,7 @@ static void steam_login(PurpleAccount* account) {
 		case EResult::OK:
 			steam->client.SetPersonaState(EPersonaState::Online);
 			purple_connection_set_state(pc, PURPLE_CONNECTED);
-			purple_connection_set_display_name(pc, std::to_string(steamID).c_str());
+			purple_connection_set_display_name(pc, std::unique_ptr<gchar, decltype(g_free)*>(g_strdup_printf("%" G_GUINT64_FORMAT, steamID), g_free).get());
 			break;
 		case EResult::AccountLogonDenied:
 			purple_request_input(
@@ -212,16 +218,16 @@ static void steam_login(PurpleAccount* account) {
 			// either we're joining a chat or something is happening in a chat
 			
 			// create a dummy group to store aliases if it doesn't exist yet
-			auto group = purple_group_new(std::to_string(source).c_str());
+			auto group = purple_group_new(std::unique_ptr<gchar, decltype(g_free)*>(g_strdup_printf("%" G_GUINT64_FORMAT, source), g_free).get());
 			
-			auto user_id = std::to_string(user);
-			if (!purple_find_buddy_in_group(account, user_id.c_str(), group)) {
+			std::unique_ptr<gchar, decltype(g_free)*> user_id(g_strdup_printf("%" G_GUINT64_FORMAT, user), g_free);
+			if (!purple_find_buddy_in_group(account, user_id.get(), group)) {
 				// someone new to this chat
-				purple_blist_add_buddy(purple_buddy_new(account, user_id.c_str(), NULL), NULL, group, NULL);
+				purple_blist_add_buddy(purple_buddy_new(account, user_id.get(), NULL), NULL, group, NULL);
 			}
-			serv_got_alias(pc, user_id.c_str(), name);
+			serv_got_alias(pc, user_id.get(), name);
 			
-		} else if (source == 0 && user == std::stoull(purple_connection_get_display_name(pc))) {
+		} else if (source == 0 && user == g_ascii_strtoull(purple_connection_get_display_name(pc), NULL, 10)) {
 			// our own info
 			purple_account_set_alias(account, name);
 		}
@@ -235,14 +241,14 @@ static void steam_login(PurpleAccount* account) {
 		const ChatMember members[]
 	) {
 		if (response == EChatRoomEnterResponse::Success) {
-			auto convo = serv_got_joined_chat(pc, room.ID, std::to_string(room).c_str());
+			auto convo = serv_got_joined_chat(pc, room.ID, std::unique_ptr<gchar, decltype(g_free)*>(g_strdup_printf("%" G_GUINT64_FORMAT, room), g_free).get());
 			purple_conversation_set_title(convo, name);
 			auto chat = purple_conversation_get_chat_data(convo);
 			
 			while (member_count--) {
 				purple_conv_chat_add_user(
 					chat,
-					std::to_string(members[member_count].steamID).c_str(),
+					std::unique_ptr<gchar, decltype(g_free)*>(g_strdup_printf("%" G_GUINT64_FORMAT, members[member_count].steamID), g_free).get(),
 					NULL,
 					PURPLE_CBFLAGS_NONE, // TODO
 					FALSE
@@ -264,20 +270,20 @@ static void steam_login(PurpleAccount* account) {
 		auto chat = purple_conversation_get_chat_data(convo);
 		
 		if (state_change == EChatMemberStateChange::Entered) {
-			purple_conv_chat_add_user(chat, std::to_string(acted_on).c_str(), NULL, PURPLE_CBFLAGS_NONE, TRUE);
+			purple_conv_chat_add_user(chat, std::unique_ptr<gchar, decltype(g_free)*>(g_strdup_printf("%" G_GUINT64_FORMAT, acted_on), g_free).get(), NULL, PURPLE_CBFLAGS_NONE, TRUE);
 		} else {
 			// TODO: print reason
-			if (acted_on == std::stoull(purple_connection_get_display_name(pc))) {
+			if (acted_on == g_ascii_strtoull(purple_connection_get_display_name(pc), NULL, 10)) {
 				// we got kicked or banned
 				serv_got_chat_left(pc, room.ID);
 			} else {
-				auto user_id = std::to_string(acted_on);
-				purple_conv_chat_remove_user(chat, user_id.c_str(), NULL);
+				std::unique_ptr<gchar, decltype(g_free)*> user_id(g_strdup_printf("%" G_GUINT64_FORMAT, acted_on), g_free);
+				purple_conv_chat_remove_user(chat, user_id.get(), NULL);
 				
 				// remove the respective buddy
 				auto group_buddy = purple_find_buddy_in_group(
 					account,
-					user_id.c_str(),
+					user_id.get(),
 					purple_find_group(purple_conversation_get_name(convo))
 				);
 				purple_blist_remove_buddy(group_buddy);
@@ -286,10 +292,10 @@ static void steam_login(PurpleAccount* account) {
 	};
 	
 	steam->client.onChatMsg = [pc](SteamID room, SteamID chatter, const char* message) {
-		serv_got_chat_in(pc, room.ID, std::to_string(chatter).c_str(), PURPLE_MESSAGE_RECV, message, time(NULL));
+		serv_got_chat_in(pc, room.ID, std::unique_ptr<gchar, decltype(g_free)*>(g_strdup_printf("%" G_GUINT64_FORMAT, chatter), g_free).get(), PURPLE_MESSAGE_RECV, message, time(NULL));
 	};
 	
-	connect(account, steam);
+	steam_connect(account, steam);
 }
 
 static void steam_close(PurpleConnection* pc) {
@@ -318,7 +324,7 @@ static GList* steam_chat_info(PurpleConnection* gc) {
 void steam_join_chat(PurpleConnection* pc, GHashTable* components) {
 	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
 	auto steamID_string = reinterpret_cast<const gchar*>(g_hash_table_lookup(components, "steamID"));
-	steam->client.JoinChat(std::stoull(steamID_string));
+	steam->client.JoinChat(g_ascii_strtoull(steamID_string, NULL, 10));
 }
 
 void steam_chat_leave(PurpleConnection* pc, int id) {
@@ -326,7 +332,7 @@ void steam_chat_leave(PurpleConnection* pc, int id) {
 	auto chat_name = purple_conversation_get_name(chat);
 	
 	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
-	steam->client.LeaveChat(std::stoull(chat_name));
+	steam->client.LeaveChat(g_ascii_strtoull(chat_name, NULL, 10));
 	
 	// clear the alias storage group
 	// despite what the docs imply, you can't remove a non-empty group
@@ -352,7 +358,7 @@ int steam_chat_send(PurpleConnection* pc, int id, const char* message, PurpleMes
 	SteamPurple* steam = (SteamPurple* )pc->proto_data;
 	
 	// can't reliably reconstruct a full SteamID from an account ID
-	steam->client.SendChatMessage(std::stoull(purple_conversation_get_name(purple_find_chat(pc, id))), message);
+	steam->client.SendChatMessage(g_ascii_strtoull(purple_conversation_get_name(purple_find_chat(pc, id)), NULL, 10), message);
 	
 	// the message doesn't get echoed automatically
 	serv_got_chat_in(pc, id, purple_connection_get_display_name(pc), PURPLE_MESSAGE_SEND, message, time(NULL));

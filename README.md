@@ -1,41 +1,48 @@
 Steam++
 =======
 
-This is a C++ port of [SteamKit2](https://bitbucket.org/VoiDeD/steamre). It's framework-agnostic – you should be able to use it with any TODO: finish this sentence.
+This is a C++ port of [SteamKit2](https://bitbucket.org/VoiDeD/steamre). It's framework-agnostic – you should be able to integrate it with any event loop.
 
 ## Building
 
-Steam++ uses CMake. If you run `cmake` (or preferably `cmake -i` or `cmake-gui`) inside the project dir, you should see which dependencies are missing. Here's the list:
+Steam++ uses [CMake](http://www.cmake.org/). If you run `cmake-gui` in the project dir, you should see which dependencies are missing. Here's the list:
 
-* Protobuf  
+### Protobuf
 
 Used for serialization of most message types sent to/from Steam servers.  
 
-Debian/Ubuntu: install `libprotobuf-dev`.  
-Windows: download the latest source, follow the instructions provided in it to build libprotobuf.lib (Release), then provide CMake with the path to the protobuf source directory.  
+* Debian/Ubuntu: Install `libprotobuf-dev`.
+* Windows: [Download](http://code.google.com/p/protobuf/downloads) the latest source and build it yourself following the instructions provided in it and below.
+* Visual Studio: Build libprotobuf.lib (Release), set `PROTOBUF_SRC_ROOT_FOLDER` to the protobuf source directory.
+* MinGW: Set the install prefix to `/mingw` if you're building steampurple. Also note that you have to do this from MinGW Shell.
 
-* OpenSSL
+### OpenSSL
 
-Used for encryption.  
+Used for encryption.
 
-Debian/Ubuntu: install `libssl-dev`.  
-Windows: install [OpenSSL for Windows](http://slproweb.com/products/Win32OpenSSL.html) into the default installation path. "Light" versions will probably not work. 
+* Debian/Ubuntu: Install `libssl-dev`.
+* Windows: Install [OpenSSL for Windows](http://slproweb.com/products/Win32OpenSSL.html) into the default installation path. "Light" versions will probably not work.
+* MinGW: If you are building steampurple, get the [static libraries](http://www.wittfella.com/openssl) as well. Extract the files under the `openssl-1.0.1c_static_w32_mingw` directory into your MinGW directory.
 
-* zlib
+### zlib
   
 Used for CRC32. Also a dependency of libarchive.  
 
-Debian/Ubuntu: install `libz-dev`.  
-Windows: download the latest [official](http://www.zlib.net/) "compiled DLL", put the includes somewhere CMake will find them (you can tweak CMAKE_INCLUDE_PATH), put the .lib somewhere CMake will find it (you can tweak CMAKE_LIBRARY_PATH) and the .dll somewhere Windows will find it. Don't use the GnuWin32 package, it's old and broken.
+* Debian/Ubuntu: install `libz-dev`.
+* Windows: Install the [GnuWin32 zlib package](http://gnuwin32.sourceforge.net/packages/zlib.htm).
+* Visual Studio: Then edit `<GnuWin32 install dir>\include\zconf.h` and change the `#if` on line 287 to 0 instead of 1. No need to do this for MinGW.
 
-* libarchive
+### libarchive
 
-Used to read .zip archives because that's what Valve uses for data compression. (I'm serious.)
+Used for reading .zip archives because that's what Valve uses for data compression.
 
-Debian/Ubuntu: install `libarchive-dev`.  
-Windows: download the latest [source](http://www.libarchive.org/) and compile it yourself using the provided instructions. Then do the same with the library, the dll and the includes as with zlib. The GnuWin32 package for libarchive is old and broken too.
+* Debian/Ubuntu: Install `libarchive-dev`.
+* Windows: [Download](http://www.libarchive.org/) the latest stable release and compile it using the instructions [here](https://github.com/libarchive/libarchive/wiki/BuildInstructions) and below. In CMake, uncheck every checkbox to speed up the process.
+* Visual Studio: Set the install prefix to somewhere in `CMAKE_PREFIX_PATH` (you can tweak the latter). To install, build the INSTALL project.
+* MinGW: Set the install prefix to your MinGW directory if you're building steampurple. To install, run `mingw32-make install`.
 
-Additionally, you'll need to clone [SteamRE](https://bitbucket.org/VoiDeD/steamre) somewhere and then set either the `SteamRE` environment variable or the `STEAMRE` cache variable to the directory where you cloned it.
+### SteamRE
+[SteamRE](https://bitbucket.org/VoiDeD/steamre) repo contains .proto files we need. If you're building steampurple on MinGW, clone it into SteamPP's parent directory. Otherwise clone it wherever you want, but set either the `SteamRE` environment variable or the `STEAMRE` cache variable to the directory where you cloned it.
 
 ## Usage
 
@@ -57,12 +64,28 @@ A small project that uses [libuv](https://github.com/joyent/libuv) as the backen
 
 A libpurple plugin. Currently supports joining chats, leaving chats, sending messages to chats and receiving messages from chats.
 
-### Building
+Note that this is very unstable and will crash at any opportunity. If it happens, please don't hesitate to submit an issue with the debug log.
 
-Building with MinGW is a pain and Windows support is not currently my highest priority. Pull requests are welcome. Linux instructions:
+### Building on Linux
 
 1. Install development packages for libpurple and glib. On Debian/Ubuntu those are `libglib2.0-dev` and `libpurple-dev`
 2. Rerun CMake
 3. `make steam && cp libsteam.so ~/.purple/plugins`
 
-Note that this is very unstable and will crash at any opportunity. If it happens, please don't hesitate to submit an issue with the debug log.
+### Building on MinGW
+
+CMake will always prefer shared libraries over static, so libsteam.dll built with CMake would have a bazillion dependencies, rendering it somewhat useless. You'll have to build libsteam++.a using CMake, then use that to build libsteam.dll manually.
+
+1. [Build Pidgin](https://developer.pidgin.im/wiki/BuildingWinPidgin?version=147). `pidgin-devel` should be one level above your SteamPP directory (i.e. `pidgin-devel` and `SteamPP` should be in the same folder). The "Crash Reporting Library" link is wrong in the instructions, you need [this one](https://developer.pidgin.im/static/win32/pidgin-inst-deps-20120910.tar.gz) instead. When installing MinGW, additionally check "C++ Compiler" and "MSYS Basic System".
+2. Follow the [instructions above](#building) to set up the dependencies of Steam++ if you haven't yet.
+3. Run `cmake -G "MSYS Makefiles" -DCMAKE_PREFIX_PATH=/mingw -DSTEAMRE=../steamre -DCMAKE_BUILD_TYPE=MinSizeRel` in the SteamPP directory in MinGW Shell.
+4. Run `make steam++`.
+5. Run the following:
+  
+  ```
+  g++ -shared -olibsteam.dll steampurple.cpp -I../pidgin-devel/win32-dev/gtk_2_0-2.14/include/glib-2.0/ -I../pidgin-devel/win32-dev/gtk_2_0-2.14/lib/glib-2.0/include/ -I../pidgin-devel/pidgin-2.10.7/libpurple/ -std=c++11 libsteam++.a /mingw/lib/libarchive_static.a /mingw/lib/libprotobuf.a -L../pidgin-devel/pidgin-2.10.7/libpurple -lpurple -L../pidgin-devel/win32-dev/gtk_2_0-2.14/lib/ -lglib-2.0 -lz -L/mingw -lssl -lcrypto -lgdi32 -static-libgcc -static-libstdc++
+  ```
+  Add `-s` to the above command to strip debugging information from the .dll and get a much smaller file size.
+6. Copy the resulting libsteam.dll file into `%appdata%\.purple\plugins`.
+
+If someone knows a way to simplify the process, let me know.

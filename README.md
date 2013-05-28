@@ -22,7 +22,7 @@ Used for encryption.
 
 * Debian/Ubuntu: Install `libssl-dev`.
 * Windows: Install [OpenSSL for Windows](http://slproweb.com/products/Win32OpenSSL.html) into the default installation path. "Light" versions will probably not work.
-* MinGW: If you are building steampurple, get the [static libraries](http://www.wittfella.com/openssl) as well. Extract the files under the `openssl-1.0.1c_static_w32_mingw` directory into your MinGW directory.
+* MinGW: If you are building steampurple, get the [static libraries](http://www.wittfella.com/openssl) instead. Extract the files under the `openssl-1.0.1c_static_w32_mingw` directory into your MinGW directory.
 
 ### zlib
   
@@ -74,18 +74,12 @@ Note that this is very unstable and will crash at any opportunity. If it happens
 
 ### Building on MinGW
 
-CMake will always prefer shared libraries over static, so libsteam.dll built with CMake would have a bazillion dependencies, rendering it somewhat useless. You'll have to build libsteam++.a using CMake, then use that to build libsteam.dll manually.
-
 1. [Build Pidgin](https://developer.pidgin.im/wiki/BuildingWinPidgin?version=147). `pidgin-devel` should be one level above your SteamPP directory (i.e. `pidgin-devel` and `SteamPP` should be in the same folder). The "Crash Reporting Library" link is wrong in the instructions, you need [this one](https://developer.pidgin.im/static/win32/pidgin-inst-deps-20120910.tar.gz) instead. When installing MinGW, additionally check "C++ Compiler" and "MSYS Basic System".
 2. Follow the [instructions above](#building) to set up the dependencies of Steam++ if you haven't yet.
-3. Run `cmake -G "MSYS Makefiles" -DCMAKE_PREFIX_PATH=/mingw -DSTEAMRE=../steamre -DCMAKE_BUILD_TYPE=MinSizeRel` in the SteamPP directory in MinGW Shell.
-4. Run `make steam++`.
-5. Run the following:
+3. Run the following in the SteamPP directory in MinGW Shell:
   
   ```
-  g++ -shared -olibsteam.dll steampurple.cpp -I../pidgin-devel/win32-dev/gtk_2_0-2.14/include/glib-2.0/ -I../pidgin-devel/win32-dev/gtk_2_0-2.14/lib/glib-2.0/include/ -I../pidgin-devel/pidgin-2.10.7/libpurple/ -std=c++11 libsteam++.a /mingw/lib/libarchive_static.a /mingw/lib/libprotobuf.a -L../pidgin-devel/pidgin-2.10.7/libpurple -lpurple -L../pidgin-devel/win32-dev/gtk_2_0-2.14/lib/ -lglib-2.0 -lz -L/mingw -lssl -lcrypto -lgdi32 -static-libgcc -static-libstdc++
+  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLIB_EAY=/mingw/libcrypto.a -DSSL_EAY=/mingw/libssl.a -DLibArchive_LIBRARY=/mingw/lib/libarchive.a -DCMAKE_PREFIX_PATH=/mingw:../pidgin-devel/pidgin-2.10.7/libpurple:../pidgin-devel/win32-dev/gtk_2_0-2.14 -DCMAKE_MODULE_LINKER_FLAGS="-static-libgcc -static-libstdc++" -DSTEAMRE=../steamre
   ```
-  Add `-s` to the above command to strip debugging information from the .dll and get a much smaller file size.
-6. Copy the resulting libsteam.dll file into `%appdata%\.purple\plugins`.
-
-If someone knows a way to simplify the process, let me know.
+4. Run `make steam`.
+5. Copy the resulting libsteam.dll file into `%appdata%\.purple\plugins`.

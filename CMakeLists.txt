@@ -3,8 +3,8 @@ project(Steam++)
 
 find_package(Protobuf REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(ZLIB REQUIRED)
 find_package(LibArchive REQUIRED)
+find_package(ZLIB REQUIRED)
 
 set(STEAMRE $ENV{SteamRE} CACHE PATH "Where you cloned SteamRE")
 set(PROTOBUF_IMPORT_DIRS ${STEAMRE}/Resources/Protobufs)
@@ -19,8 +19,8 @@ list(APPEND CMAKE_CXX_FLAGS -std=c++0x)
 include_directories(
 	${PROTOBUF_INCLUDE_DIRS}
 	${OPENSSL_INCLUDE_DIR}
-	${ZLIB_INCLUDE_DIRS}
 	${LibArchive_INCLUDE_DIRS}
+	${ZLIB_INCLUDE_DIRS}
 	${CMAKE_BINARY_DIR}
 )
 
@@ -33,8 +33,8 @@ add_library(steam++
 target_link_libraries(steam++
 	${PROTOBUF_LIBRARIES}
 	${OPENSSL_LIBRARIES}
-	${ZLIB_LIBRARIES}
 	${LibArchive_LIBRARIES}
+	${ZLIB_LIBRARIES}
 )
 
 
@@ -62,22 +62,22 @@ endif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
 
 # libpurple plugin
 
-find_package(PkgConfig)
-if (PKG_CONFIG_FOUND)
-	pkg_check_modules(PURPLE
-		glib-2.0
-		purple
+find_library(LIBPURPLE_LIBRARIES purple)
+find_path(LIBPURPLE_INCLUDE_DIRS purple.h PATH_SUFFIXES libpurple)
+find_package(GLIB)
+if (LIBPURPLE_LIBRARIES AND LIBPURPLE_INCLUDE_DIRS AND GLIB_FOUND)
+	add_library(steam MODULE
+		steampurple.cpp
 	)
-	if (PURPLE_FOUND)
-		add_library(steam MODULE
-			steampurple.cpp
-		)
-		
-		include_directories(${PURPLE_INCLUDE_DIRS})
-		
-		target_link_libraries(steam
-			steam++
-			${PURPLE_LIBRARIES}
-		)
-	endif()
+	
+	include_directories(
+		${LIBPURPLE_INCLUDE_DIRS}
+		${GLIB_INCLUDE_DIRS}
+	)
+	
+	target_link_libraries(steam
+		steam++
+		${LIBPURPLE_LIBRARIES}
+		${GLIB_LIBRARIES}
+	)
 endif()

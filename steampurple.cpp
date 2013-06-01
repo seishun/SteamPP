@@ -310,6 +310,18 @@ static void steam_login(PurpleAccount* account) {
 		g_free(chatter_string);
 	};
 	
+	steam->client.onPrivateMsg = [pc](SteamID user, const char* message) {
+		auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
+		serv_got_im(pc, user_string, message, PURPLE_MESSAGE_RECV, time(NULL));
+		g_free(user_string);
+	};
+	
+	steam->client.onTyping = [pc](SteamID user) {
+		auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
+		serv_got_typing(pc, user_string, 20, PURPLE_TYPING);
+		g_free(user_string);
+	};
+	
 	steam_connect(account, steam);
 }
 
@@ -334,6 +346,20 @@ static GList* steam_chat_info(PurpleConnection* gc) {
 	m = g_list_append(m, pce);
 	
 	return m;
+}
+
+static int steam_send_im(PurpleConnection* pc, const char* who, const char* message, PurpleMessageFlags flags) {
+	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+	steam->client.SendPrivateMessage(g_ascii_strtoull(who, NULL, 10), message);
+	return 1;
+}
+
+static unsigned int steam_send_typing(PurpleConnection* pc, const gchar* name, PurpleTypingState state) {
+	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+	if (state == PURPLE_TYPING) {
+		steam->client.SendTyping(g_ascii_strtoull(name, NULL, 10));
+	}
+	return 20;
 }
 
 void steam_join_chat(PurpleConnection* pc, GHashTable* components) {
@@ -405,9 +431,9 @@ static PurplePluginProtocolInfo prpl_info = {
 	NULL,//steam_chat_info_defaults,  /* chat_info_defaults */
 	steam_login,               /* login */
 	steam_close,               /* close */
-	NULL, //steam_send_im,             /* send_im */
+	steam_send_im,             /* send_im */
 	NULL,                      /* set_info */
-	NULL, //steam_send_typing,         /* send_typing */
+	steam_send_typing,         /* send_typing */
 	NULL,//steam_get_info,            /* get_info */
 	NULL, //steam_set_status,          /* set_status */
 	NULL, //steam_set_idle,            /* set_idle */

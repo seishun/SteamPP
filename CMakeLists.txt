@@ -14,7 +14,7 @@ PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS
 	${PROTOBUF_IMPORT_DIRS}/steamclient/encrypted_app_ticket.proto
 )
 
-list(APPEND CMAKE_CXX_FLAGS -std=c++0x)
+set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
 include_directories(
 	${PROTOBUF_INCLUDE_DIRS}

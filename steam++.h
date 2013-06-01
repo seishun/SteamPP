@@ -184,6 +184,12 @@ namespace Steam {
 		// a message has been received in a chat
 		std::function<void(SteamID room, SteamID chatter, const char* message)> onChatMsg;
 		
+		// a private message has been received
+		std::function<void(SteamID user, const char* message)> onPrivateMsg;
+		
+		// someone has started typing a message
+		std::function<void(SteamID user)> onTyping;
+		
 		
 		/* methods */
 		
@@ -213,6 +219,10 @@ namespace Steam {
 		void LeaveChat(SteamID chat);
 		
 		void SendChatMessage(SteamID chat, const char* message);
+		
+		void SendPrivateMessage(SteamID user, const char* message);
+		
+		void SendTyping(SteamID user);
 		
 	private:
 		class CMClient;

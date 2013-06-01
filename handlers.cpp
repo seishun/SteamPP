@@ -254,5 +254,37 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 		}
 		
 		break;
+		
+	case EMsg::ClientFriendMsgIncoming:
+		{
+			if (!onPrivateMsg && !onTyping)
+				return;
+			
+			CMsgClientFriendMsgIncoming msg;
+			msg.ParseFromArray(data, length);
+			
+			switch (static_cast<EChatEntryType>(msg.chat_entry_type())) {
+				
+			case EChatEntryType::ChatMsg:
+				if (onPrivateMsg)
+					onPrivateMsg(msg.steamid_from(), msg.message().c_str());
+				break;
+				
+			case EChatEntryType::Typing:
+				if (onTyping)
+					onTyping(msg.steamid_from());
+				break;
+				
+			case EChatEntryType::LeftConversation:
+				// the other party closed the window
+				// not implemented by Steam client
+				break;
+				
+			default:
+				assert(!"Unexpected message type!");
+			}
+		}
+		
+		break;
 	}
 }

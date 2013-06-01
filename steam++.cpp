@@ -93,6 +93,25 @@ void SteamClient::SendChatMessage(SteamID chat, const char* message) {
 	});
 }
 
+void SteamClient::SendPrivateMessage(SteamID user, const char* message) {
+	CMsgClientFriendMsg msg;
+	
+	msg.set_steamid(user);
+	msg.set_message(message);
+	msg.set_chat_entry_type(static_cast<google::protobuf::uint32>(EChatEntryType::ChatMsg));
+	
+	cmClient->WriteMessage(EMsg::ClientFriendMsg, msg);
+}
+
+void SteamClient::SendTyping(SteamID user) {
+	CMsgClientFriendMsg msg;
+	
+	msg.set_steamid(user);
+	msg.set_chat_entry_type(static_cast<google::protobuf::uint32>(EChatEntryType::Typing));
+	
+	cmClient->WriteMessage(EMsg::ClientFriendMsg, msg);
+}
+
 std::size_t SteamClient::connected() {
 	packetLength = 0;	
 	cmClient->steamID.ID = 0;

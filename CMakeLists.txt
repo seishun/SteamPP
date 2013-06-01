@@ -25,7 +25,7 @@ include_directories(
 )
 
 add_library(steam++
-	steam_client.cpp
+	steam++.cpp
 	handlers.cpp
 	${PROTO_SRCS}
 )

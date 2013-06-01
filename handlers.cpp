@@ -1,9 +1,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include "steam++.h"
-#include "steam_language/steam_language_internal.h"
-#include "steammessages_clientserver.pb.h"
+#include "cmclient.h"
 
 #include <openssl/bio.h>
 #include <openssl/pem.h>
@@ -37,18 +35,18 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			
 			auto rsa_size = RSA_size(rsa);
 			
-			WriteMessage(EMsg::ChannelEncryptResponse, false, sizeof(MsgChannelEncryptResponse) + rsa_size + 4 + 4, [this, &rsa, rsa_size](unsigned char* buffer) {
+			cmClient->WriteMessage(EMsg::ChannelEncryptResponse, sizeof(MsgChannelEncryptResponse) + rsa_size + 4 + 4, [this, &rsa, rsa_size](unsigned char* buffer) {
 				auto enc_resp = new (buffer) MsgChannelEncryptResponse;
 				auto crypted_sess_key = buffer + sizeof(MsgChannelEncryptResponse); 
 				
-				RAND_bytes(sessionKey, sizeof(sessionKey));
+				RAND_bytes(cmClient->sessionKey, sizeof(cmClient->sessionKey));
 				
 				RSA_public_encrypt(
-					sizeof(sessionKey),    // flen
-					sessionKey,            // from
-					crypted_sess_key,      // to
-					rsa,                   // rsa
-					RSA_PKCS1_OAEP_PADDING // padding
+					sizeof(cmClient->sessionKey),
+					cmClient->sessionKey,
+					crypted_sess_key,
+					rsa,
+					RSA_PKCS1_OAEP_PADDING
 				);
 				
 				auto crc = crc32(0, crypted_sess_key, rsa_size);
@@ -67,7 +65,7 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			auto enc_result = reinterpret_cast<const MsgChannelEncryptResult*>(data);
 			assert(enc_result->result == static_cast<std::uint32_t>(EResult::OK));
 			
-			encrypted = true;
+			cmClient->encrypted = true;
 			
 			if (onHandshake) {
 				onHandshake();
@@ -136,16 +134,12 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			auto interval = logon_resp.out_of_game_heartbeat_seconds();
 			
 			if (onLogOn) {
-				onLogOn(eresult, steamID);
+				onLogOn(eresult, cmClient->steamID);
 			}
 			
 			if (eresult == EResult::OK) {
 				setInterval([this] {
-					CMsgClientHeartBeat heartbeat;
-					auto size = heartbeat.ByteSize();
-					WriteMessage(EMsg::ClientHeartBeat, true, size, [&heartbeat, size](unsigned char* buffer) {
-						heartbeat.SerializeToArray(buffer, size);
-					});
+					cmClient->WriteMessage(EMsg::ClientHeartBeat, CMsgClientHeartBeat());
 				}, interval);
 			}			
 		}
@@ -166,10 +160,7 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			
 			CMsgClientUpdateMachineAuthResponse response;
 			response.set_sha_file(sha, 20);
-			auto size = response.ByteSize();
-			WriteMessage(EMsg::ClientUpdateMachineAuthResponse, true, size, [&response, size](unsigned char *buffer) {
-				response.SerializeToArray(buffer, size);
-			}, job_id);
+			cmClient->WriteMessage(EMsg::ClientUpdateMachineAuthResponse, response, job_id);
 			
 			onSentry(sha);
 		}

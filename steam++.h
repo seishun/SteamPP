@@ -122,6 +122,8 @@ namespace Steam {
 			std::function<void(std::function<void()> callback, int timeout)> set_interval
 		);
 		
+		~SteamClient();
+		
 		
 		/* slots */
 		
@@ -213,27 +215,13 @@ namespace Steam {
 		void SendChatMessage(SteamID chat, const char* message);
 		
 	private:
-		std::function<void(std::size_t length, std::function<void(unsigned char* buffer)> fill)> write;
+		class CMClient;
+		CMClient* cmClient;
+		
+		// some members remain here to avoid a back pointer
 		std::function<void(std::function<void()> callback, int timeout)> setInterval;
-		
-		SteamID steamID;
-		std::int32_t sessionID;
-		
 		std::size_t packetLength;
-		
-		unsigned char sessionKey[32];
-		bool encrypted;
-		
 		void ReadMessage(const unsigned char* data, std::size_t length);
 		void HandleMessage(EMsg eMsg, const unsigned char* data, std::size_t length, std::uint64_t job_id);
-		
-		void WriteMessage(
-			EMsg eMsg,
-			bool is_proto,
-			std::size_t length,
-			const std::function<void(unsigned char* buffer)> &fill,
-			std::uint64_t job_id = 0
-		);
-		void WritePacket(std::size_t length, const std::function<void(unsigned char* buffer)> &fill);
 	};
 }

@@ -1,16 +1,8 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
-#include <iostream> // TEMPORARY
-#include "steam++.h"
-#include "steam_language/steam_language_internal.h"
-#include "steammessages_clientserver.pb.h"
 
-#include <openssl/rand.h>
-#include <openssl/evp.h>
-
-auto MAGIC = "VT01";
-auto PROTO_MASK = 0x80000000;
+#include "cmclient.h"
 
 using namespace Steam;
 
@@ -24,10 +16,10 @@ SteamID::operator std::uint64_t() const {
 SteamClient::SteamClient(
 	std::function<void(std::size_t length, std::function<void(unsigned char* buffer)> fill)> write,
 	std::function<void(std::function<void()> callback, int timeout)> set_interval
-) : write(std::move(write)), setInterval(std::move(set_interval)) {
-	steamID.instance = 1;
-	steamID.universe = static_cast<unsigned>(EUniverse::Public);
-	steamID.type = static_cast<unsigned>(EAccountType::Individual);
+) : cmClient(new CMClient(std::move(write))), setInterval(std::move(set_interval)) {}
+
+SteamClient::~SteamClient() {
+	delete cmClient;
 }
 
 void SteamClient::LogOn(const char* username, const char* password, const unsigned char hash[20], const char* code) {
@@ -41,20 +33,13 @@ void SteamClient::LogOn(const char* username, const char* password, const unsign
 	if (code) {
 		logon.set_auth_code(code);
 	}
-	
-	auto size = logon.ByteSize();
-	WriteMessage(EMsg::ClientLogon, true, size, [&logon, size](unsigned char* buffer) {
-		logon.SerializeToArray(buffer, size);
-	});
+	cmClient->WriteMessage(EMsg::ClientLogon, logon);
 }
 
 void SteamClient::SetPersonaState(EPersonaState state) {
 	CMsgClientChangeStatus change_status;
 	change_status.set_persona_state(static_cast<google::protobuf::uint32>(state));
-	auto size = change_status.ByteSize();
-	WriteMessage(EMsg::ClientChangeStatus, true, change_status.ByteSize(), [&change_status, size](unsigned char* buffer) {
-		change_status.SerializeToArray(buffer, size);
-	});
+	cmClient->WriteMessage(EMsg::ClientChangeStatus, change_status);
 }
 
 void SteamClient::JoinChat(SteamID chat) {
@@ -64,7 +49,7 @@ void SteamClient::JoinChat(SteamID chat) {
 		chat.type = static_cast<unsigned>(EAccountType::Chat);
 	}
 	
-	WriteMessage(EMsg::ClientJoinChat, false, sizeof(MsgClientJoinChat), [&chat](unsigned char* buffer) {
+	cmClient->WriteMessage(EMsg::ClientJoinChat, sizeof(MsgClientJoinChat), [&chat](unsigned char* buffer) {
 		auto join_chat = new (buffer) MsgClientJoinChat;
 		join_chat->steamIdChat = chat;
 	});
@@ -78,15 +63,15 @@ void SteamClient::LeaveChat(SteamID chat) {
 		chat.type = static_cast<unsigned>(EAccountType::Chat);
 	}
 	
-	WriteMessage(EMsg::ClientChatMemberInfo, false, sizeof(MsgClientChatMemberInfo) + 20, [&](unsigned char* buffer) {
+	cmClient->WriteMessage(EMsg::ClientChatMemberInfo, sizeof(MsgClientChatMemberInfo) + 20, [&](unsigned char* buffer) {
 		auto leave_chat = new (buffer) MsgClientChatMemberInfo;
 		leave_chat->steamIdChat = chat;
 		leave_chat->type = static_cast<unsigned>(EChatInfoType::StateChange);
 		
 		auto payload = buffer + sizeof(MsgClientChatMemberInfo);
-		*reinterpret_cast<std::uint64_t*>(payload) = steamID; // chatter_acted_on
+		*reinterpret_cast<std::uint64_t*>(payload) = cmClient->steamID; // chatter_acted_on
 		*reinterpret_cast<EChatMemberStateChange*>(payload + 8) = EChatMemberStateChange::Left; // state_change
-		*reinterpret_cast<std::uint64_t*>(payload + 8 + 4) = steamID; // chatter_acted_by
+		*reinterpret_cast<std::uint64_t*>(payload + 8 + 4) = cmClient->steamID; // chatter_acted_by
 	});
 }
 
@@ -98,23 +83,21 @@ void SteamClient::SendChatMessage(SteamID chat, const char* message) {
 		chat.type = static_cast<unsigned>(EAccountType::Chat);
 	}
 	
-	WriteMessage(EMsg::ClientChatMsg, false, sizeof(MsgClientChatMsg) + std::strlen(message) + 1, [&](unsigned char* buffer) {
+	cmClient->WriteMessage(EMsg::ClientChatMsg, sizeof(MsgClientChatMsg) + std::strlen(message) + 1, [&](unsigned char* buffer) {
 		auto send_msg = new (buffer) MsgClientChatMsg;
 		send_msg->chatMsgType = static_cast<std::uint32_t>(EChatEntryType::ChatMsg);
 		send_msg->steamIdChatRoom = chat;
-		send_msg->steamIdChatter = steamID;
+		send_msg->steamIdChatter = cmClient->steamID;
 		
 		std::strcpy(reinterpret_cast<char*>(buffer + sizeof(MsgClientChatMsg)), message);
 	});
 }
 
 std::size_t SteamClient::connected() {
-	std::cout << "Connected!" << std::endl; // TEMPORARY
-	
-	steamID.ID = 0;
-	sessionID = 0;
-	packetLength = 0;
-	encrypted = false;
+	packetLength = 0;	
+	cmClient->steamID.ID = 0;
+	cmClient->sessionID = 0;
+	cmClient->encrypted = false;
 	
 	return 8;
 }
@@ -126,38 +109,35 @@ std::size_t SteamClient::readable(const unsigned char* input) {
 		return packetLength;
 	}
 	
-	if (encrypted) {
-		EVP_CIPHER_CTX ctx;
-		EVP_CIPHER_CTX_init(&ctx);
+	if (cmClient->encrypted) {
 		auto output = new unsigned char[packetLength];
 		
-		auto success = EVP_CipherInit_ex(&ctx, EVP_aes_256_ecb(), NULL, sessionKey, NULL, 0);
+		auto success = EVP_CipherInit_ex(&cmClient->ctx, EVP_aes_256_ecb(), NULL, cmClient->sessionKey, NULL, 0);
 		assert(success);
 		
 		unsigned char iv[16];
 		
-		EVP_CIPHER_CTX_set_padding(&ctx, 0);
+		EVP_CIPHER_CTX_set_padding(&cmClient->ctx, 0);
 		int out_len;
-		success = EVP_CipherUpdate(&ctx, iv, &out_len, input, 16);
+		success = EVP_CipherUpdate(&cmClient->ctx, iv, &out_len, input, 16);
 		assert(success);
 		assert(out_len == 16);
 		
-		success = EVP_CipherInit_ex(&ctx, EVP_aes_256_cbc(), NULL, sessionKey, iv, 0);
+		success = EVP_CipherInit_ex(&cmClient->ctx, EVP_aes_256_cbc(), NULL, cmClient->sessionKey, iv, 0);
 		assert(success);
 		
 		auto crypted_data = input + 16;
 		
-		success = EVP_CipherUpdate(&ctx, output, &out_len, crypted_data, packetLength - 16);
+		success = EVP_CipherUpdate(&cmClient->ctx, output, &out_len, crypted_data, packetLength - 16);
 		assert(success);
 		
 		int out_len_final;
-		success = EVP_CipherFinal_ex(&ctx, output + out_len, &out_len_final);
+		success = EVP_CipherFinal_ex(&cmClient->ctx, output + out_len, &out_len_final);
 		assert(success);
 		
 		ReadMessage(output, out_len + out_len_final);
 		
 		delete[] output;
-		EVP_CIPHER_CTX_cleanup(&ctx);
 	} else {
 		ReadMessage(input, packetLength);
 	}
@@ -178,9 +158,9 @@ void SteamClient::ReadMessage(const unsigned char* data, std::size_t length) {
 		auto header = reinterpret_cast<const MsgHdrProtoBuf*>(data);
 		CMsgProtoBufHeader proto;
 		proto.ParseFromArray(header->proto, header->headerLength);
-		if (!sessionID && header->headerLength > 0) {
-			sessionID = proto.client_sessionid();
-			steamID = proto.steamid();
+		if (!cmClient->sessionID && header->headerLength > 0) {
+			cmClient->sessionID = proto.client_sessionid();
+			cmClient->steamID = proto.steamid();
 		}
 		HandleMessage(
 			emsg,
@@ -191,95 +171,5 @@ void SteamClient::ReadMessage(const unsigned char* data, std::size_t length) {
 	} else {
 		auto header = reinterpret_cast<const ExtendedClientMsgHdr*>(data);
 		HandleMessage(emsg, data + sizeof(ExtendedClientMsgHdr), length - sizeof(ExtendedClientMsgHdr), header->sourceJobID);
-	}
-}
-
-void SteamClient::WriteMessage(
-	EMsg emsg,
-	bool is_proto,
-	std::size_t length,
-	const std::function<void(unsigned char* buffer)> &fill,
-	std::uint64_t job_id
-) {
-	if (emsg == EMsg::ChannelEncryptResponse) {
-		WritePacket(sizeof(MsgHdr) + length, [emsg, &fill](unsigned char* buffer) {
-			auto header = new (buffer) MsgHdr;
-			header->msg = static_cast<std::uint32_t>(emsg);
-			fill(buffer + sizeof(MsgHdr));
-		});
-	} else if (is_proto) {
-		CMsgProtoBufHeader proto;
-		proto.set_steamid(steamID);
-		proto.set_client_sessionid(sessionID);
-		if (job_id) {
-			proto.set_jobid_target(job_id);
-		}
-		WritePacket(sizeof(MsgHdrProtoBuf) + proto.ByteSize() + length, [&proto, emsg, &fill](unsigned char* buffer) {
-			auto header = new (buffer) MsgHdrProtoBuf;
-			header->headerLength = proto.ByteSize();
-			header->msg = static_cast<std::uint32_t>(emsg) | PROTO_MASK;
-			proto.SerializeToArray(header->proto, header->headerLength);
-			fill(header->proto + header->headerLength);
-		});
-	} else {
-		WritePacket(sizeof(ExtendedClientMsgHdr) + length, [this, emsg, &fill](unsigned char* buffer) {
-			auto header = new (buffer) ExtendedClientMsgHdr;
-			header->msg = static_cast<std::uint32_t>(emsg);
-			header->sessionID = sessionID;
-			header->steamID = steamID;
-			fill(buffer + sizeof(ExtendedClientMsgHdr));
-		});
-	}
-}
-
-void SteamClient::WritePacket(const std::size_t length, const std::function<void(unsigned char* buffer)> &fill) {
-	if (encrypted) {
-		auto crypted_size = 16 + (length / 16 + 1) * 16; // IV + crypted message padded to multiple of 16
-		
-		write(8 + crypted_size, [&](unsigned char* out_buffer) {
-			EVP_CIPHER_CTX ctx;
-			EVP_CIPHER_CTX_init(&ctx);
-			
-			auto in_buffer = new unsigned char[length];
-			fill(in_buffer);
-			
-			auto success = EVP_CipherInit_ex(&ctx, EVP_aes_256_ecb(), NULL, sessionKey, NULL, 1);
-			assert(success);
-			
-			unsigned char iv[16];
-			RAND_bytes(iv, sizeof(iv));
-			
-			auto crypted_iv = out_buffer + 8;
-			
-			EVP_CIPHER_CTX_set_padding(&ctx, 0);
-			int out_len;
-			success = EVP_CipherUpdate(&ctx, crypted_iv, &out_len, iv, sizeof(iv));
-			assert(success);
-			assert(out_len == 16);
-			
-			success = EVP_CipherInit_ex(&ctx, EVP_aes_256_cbc(), NULL, sessionKey, iv, 1);
-			assert(success);
-			
-			auto crypted_data = crypted_iv + 16;
-			success = EVP_CipherUpdate(&ctx, crypted_data, &out_len, in_buffer, length);
-			assert(success);
-			
-			int out_len_final;
-			success = EVP_CipherFinal_ex(&ctx, crypted_data + out_len, &out_len_final);
-			assert(success);
-			assert(out_len_final == 16);
-			
-			*reinterpret_cast<std::uint32_t*>(out_buffer) = crypted_size;
-			std::copy(MAGIC, MAGIC + 4, out_buffer + 4);
-			
-			delete[] in_buffer;
-			EVP_CIPHER_CTX_cleanup(&ctx);
-		});
-	} else {
-		write(8 + length, [&](unsigned char* buffer) {
-			*reinterpret_cast<std::uint32_t*>(buffer) = length;
-			std::copy(MAGIC, MAGIC + 4, buffer + 4);
-			fill(buffer + 8);
-		});
 	}
 }

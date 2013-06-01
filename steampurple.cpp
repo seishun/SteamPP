@@ -83,12 +83,9 @@ static void steam_connect(PurpleAccount* account, SteamPurple* steam) {
 			auto steam = reinterpret_cast<SteamPurple*>(data);
 			auto len = read(source, &steam->read_buffer[steam->read_offset], steam->read_buffer.size() - steam->read_offset);
 			purple_debug_info("steam", "read: %i\n", len);
-			if (len == 0) {
-				// preceded by a ClientLoggedOff or ClientLogOnResponse, i.e. already handled
-				close(steam->fd);
-				purple_input_remove(steam->watcher);
-			}
-			assert(len != -1); // TODO
+			// len == 0: preceded by a ClientLoggedOff or ClientLogOnResponse, socket should be already closed by us
+			// len == -1: TODO
+			assert(len > 0);
 			steam->read_offset += len;
 			if (steam->read_offset == steam->read_buffer.size()) {
 				auto next_len = steam->client.readable(steam->read_buffer.data());
@@ -191,6 +188,9 @@ static void steam_login(PurpleAccount* account) {
 				/* conv */          NULL,
 				/* user_data */     pc
 			);
+			// preemptively close the socket because we don't want Pidgin to display a disconnected message
+			close(steam->fd);
+			purple_input_remove(steam->watcher);
 			break;
 		case EResult::InvalidPassword:
 			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_AUTHENTICATION_FAILED, "Invalid password");

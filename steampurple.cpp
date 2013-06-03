@@ -216,7 +216,7 @@ static void steam_login(PurpleAccount* account) {
 		g_free(base64);
 	};
 	
-	steam->client.onUserInfo = [pc, account](SteamID user, SteamID source, const char* name) {
+	steam->client.onUserInfo = [pc, account](SteamID user, SteamID source, const char* name, EPersonaState state) {
 		if (static_cast<EAccountType>(source.type) == EAccountType::Chat) {
 			// either we're joining a chat or something is happening in a chat
 			

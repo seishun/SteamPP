@@ -159,8 +159,9 @@ namespace Steam {
 		// EAccountType::Clan: user shares a small group with you; source is the group's ID
 		// EAccountType::Invalid: user is your (potential) friend; source is zero
 		// name is the user's new profile name
+		// state is the user's new state
 		// more parameters to be added
-		std::function<void(SteamID user, SteamID source, const char* name)> onUserInfo;
+		std::function<void(SteamID user, SteamID source, const char* name, EPersonaState state)> onUserInfo;
 		
 		// should be called in response to `JoinChat`
 		// anything other than `EChatRoomEnterResponse::Success` denotes an error

@@ -230,7 +230,31 @@ static void steam_login(PurpleAccount* account) {
 				// someone new to this chat
 				purple_blist_add_buddy(purple_buddy_new(account, user_string, NULL), NULL, group, NULL);
 			}
+			
 			serv_got_alias(pc, user_string, name);
+			
+			PurpleStatusPrimitive prim;
+			switch (state) {
+			case EPersonaState::Offline:
+				prim = PURPLE_STATUS_OFFLINE;
+				break;
+			// these would look the same in Pidgin anyway
+			case EPersonaState::Online:
+			case EPersonaState::LookingToTrade:
+			case EPersonaState::LookingToPlay:
+				prim = PURPLE_STATUS_AVAILABLE;
+				break;
+			case EPersonaState::Busy:
+				prim = PURPLE_STATUS_UNAVAILABLE;
+				break;
+			case EPersonaState::Away:
+				prim = PURPLE_STATUS_AWAY;
+				break;
+			case EPersonaState::Snooze:
+				prim = PURPLE_STATUS_EXTENDED_AWAY;
+				break;
+			}
+			purple_prpl_got_user_status(account, user_string, purple_primitive_get_id_from_type(prim), NULL);
 			g_free(user_string);
 			
 		} else if (source == 0 && user == g_ascii_strtoull(purple_connection_get_display_name(pc), NULL, 10)) {
@@ -362,6 +386,33 @@ static unsigned int steam_send_typing(PurpleConnection* pc, const gchar* name, P
 	return 20;
 }
 
+static void steam_set_status(PurpleAccount* account, PurpleStatus* status) {
+	PurpleConnection* pc = purple_account_get_connection(account);
+	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+	
+	auto prim = purple_status_type_get_primitive(purple_status_get_type(status));
+	EPersonaState state;
+	
+	switch (prim) {
+	case PURPLE_STATUS_AVAILABLE:
+		state = EPersonaState::Online;
+		break;
+	case PURPLE_STATUS_UNAVAILABLE:
+		state = EPersonaState::Busy;
+		break;
+	case PURPLE_STATUS_AWAY:
+		state = EPersonaState::Away;
+		break;
+	case PURPLE_STATUS_EXTENDED_AWAY:
+		state = EPersonaState::Snooze;
+		break;
+	case PURPLE_STATUS_INVISIBLE:
+		state = EPersonaState::Offline;
+		break;
+	}
+	steam->client.SetPersonaState(state);
+}
+
 void steam_join_chat(PurpleConnection* pc, GHashTable* components) {
 	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
 	auto steamID_string = reinterpret_cast<const gchar*>(g_hash_table_lookup(components, "steamID"));
@@ -435,7 +486,7 @@ static PurplePluginProtocolInfo prpl_info = {
 	NULL,                      /* set_info */
 	steam_send_typing,         /* send_typing */
 	NULL,//steam_get_info,            /* get_info */
-	NULL, //steam_set_status,          /* set_status */
+	steam_set_status,          /* set_status */
 	NULL, //steam_set_idle,            /* set_idle */
 	NULL,                   /* change_passwd */
 	NULL, //steam_add_buddy,           /* add_buddy */

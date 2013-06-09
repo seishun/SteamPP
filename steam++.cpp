@@ -112,6 +112,19 @@ void SteamClient::SendTyping(SteamID user) {
 	cmClient->WriteMessage(EMsg::ClientFriendMsg, msg);
 }
 
+void SteamClient::RequestUserInfo(std::size_t count, SteamID users[]) {
+	CMsgClientRequestFriendData request;
+	
+	while (count--)
+		request.add_friends(users[count]);
+	
+	// TODO: allow custom flags
+	request.set_persona_state_requested(282);
+	
+	cmClient->WriteMessage(EMsg::ClientRequestFriendData, request);
+}
+
+
 std::size_t SteamClient::connected() {
 	packetLength = 0;	
 	cmClient->steamID.ID = 0;

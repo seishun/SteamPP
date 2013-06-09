@@ -228,6 +228,9 @@ namespace Steam {
 		
 		void SendTyping(SteamID user);
 		
+		// see `onUserInfo`
+		void RequestUserInfo(std::size_t count, SteamID users[]);
+		
 	private:
 		class CMClient;
 		CMClient* cmClient;

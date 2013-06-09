@@ -154,6 +154,7 @@ namespace Steam {
 		std::function<void(const unsigned char hash[20])> onSentry;
 		
 		// Steam is sending information about a user, possibly triggered by a change
+		// each parameter except `user` is optional and will equal `nullptr` if unset
 		// source is the reason Steam is sending this - depending on static_cast<EAccountType>(source.type):
 		// EAccountType::Chat: user shares a chat with you; source is the chat's ID
 		// EAccountType::Clan: user shares a small group with you; source is the group's ID
@@ -161,7 +162,7 @@ namespace Steam {
 		// name is the user's new profile name
 		// state is the user's new state
 		// more parameters to be added
-		std::function<void(SteamID user, SteamID source, const char* name, EPersonaState state)> onUserInfo;
+		std::function<void(SteamID user, SteamID* source, const char* name, EPersonaState* state)> onUserInfo;
 		
 		// should be called in response to `JoinChat`
 		// anything other than `EChatRoomEnterResponse::Success` denotes an error

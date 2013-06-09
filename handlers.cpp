@@ -180,7 +180,15 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			assert(state.friends_size() == 1);
 			auto &user = state.friends(0);
 			
-			onUserInfo(user.friendid(), user.steamid_source(), user.player_name().c_str(), static_cast<EPersonaState>(user.persona_state()));
+			SteamID steamid_source = user.steamid_source();
+			auto persona_state = user.persona_state();
+			
+			onUserInfo(
+				user.friendid(),
+				user.has_steamid_source() ? &steamid_source : nullptr,
+				user.has_player_name() ? user.player_name().c_str() : nullptr,
+				user.has_persona_state() ? reinterpret_cast<EPersonaState*>(&persona_state) : nullptr
+			);
 		}
 		
 		break;

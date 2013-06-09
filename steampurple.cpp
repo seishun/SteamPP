@@ -216,25 +216,32 @@ static void steam_login(PurpleAccount* account) {
 		g_free(base64);
 	};
 	
-	steam->client.onUserInfo = [pc, account](SteamID user, SteamID source, const char* name, EPersonaState state) {
-		if (static_cast<EAccountType>(source.type) == EAccountType::Chat) {
+	steam->client.onUserInfo = [pc, account](SteamID user, SteamID* source, const char* name, EPersonaState* state) {
+		auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
+		
+		if (source && static_cast<EAccountType>(source->type) == EAccountType::Chat) {
 			// either we're joining a chat or something is happening in a chat
 			
 			// create a dummy group to store aliases if it doesn't exist yet
-			auto source_string = g_strdup_printf("%" G_GUINT64_FORMAT, source);
+			auto source_string = g_strdup_printf("%" G_GUINT64_FORMAT, *source);
 			auto group = purple_group_new(source_string);
 			g_free(source_string);
 			
-			auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
 			if (!purple_find_buddy_in_group(account, user_string, group)) {
 				// someone new to this chat
 				purple_blist_add_buddy(purple_buddy_new(account, user_string, NULL), NULL, group, NULL);
 			}
-			
+		}
+		
+		if (name) {
 			serv_got_alias(pc, user_string, name);
-			
+			if (user == g_ascii_strtoull(purple_connection_get_display_name(pc), NULL, 10))
+				purple_account_set_alias(account, name);
+		}
+		
+		if (state) {
 			PurpleStatusPrimitive prim;
-			switch (state) {
+			switch (*state) {
 			case EPersonaState::Offline:
 				prim = PURPLE_STATUS_OFFLINE;
 				break;
@@ -255,12 +262,9 @@ static void steam_login(PurpleAccount* account) {
 				break;
 			}
 			purple_prpl_got_user_status(account, user_string, purple_primitive_get_id_from_type(prim), NULL);
-			g_free(user_string);
-			
-		} else if (source == 0 && user == g_ascii_strtoull(purple_connection_get_display_name(pc), NULL, 10)) {
-			// our own info
-			purple_account_set_alias(account, name);
 		}
+		
+		g_free(user_string);
 	};
 	
 	steam->client.onChatEnter = [pc](

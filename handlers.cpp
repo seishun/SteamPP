@@ -255,6 +255,27 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 		
 		break;
 		
+	case EMsg::ClientFriendsList:
+		{
+			if (!onRelationships)
+				return;
+			
+			CMsgClientFriendsList list;
+			list.ParseFromArray(data, length);
+			
+			std::vector<SteamID> steamids;
+			std::vector<EFriendRelationship> relationships;
+			
+			for (auto &user : list.friends()) {
+				steamids.push_back(user.ulfriendid());
+				relationships.push_back(static_cast<EFriendRelationship>(user.efriendrelationship()));
+			}
+			
+			onRelationships(list.bincremental(), list.friends_size(), steamids.data(), relationships.data());
+		}
+		
+		break;
+		
 	case EMsg::ClientFriendMsgIncoming:
 		{
 			if (!onPrivateMsg && !onTyping)

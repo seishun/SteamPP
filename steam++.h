@@ -191,6 +191,9 @@ namespace Steam {
 		// someone has started typing a message
 		std::function<void(SteamID user)> onTyping;
 		
+		// n-th SteamID corresponds to n-th relationship
+		std::function<void(bool incremental, std::size_t count, SteamID users[], EFriendRelationship relationships[])> onRelationships;
+		
 		
 		/* methods */
 		

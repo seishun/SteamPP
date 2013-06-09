@@ -350,6 +350,49 @@ static void steam_login(PurpleAccount* account) {
 		g_free(user_string);
 	};
 	
+	steam->client.onRelationships = [account, steam](bool incremental, std::size_t count, SteamID users[], EFriendRelationship relationships[]) {
+		if (!incremental) {
+			// clear list
+			auto buddies = purple_blist_get_buddies();
+			g_slist_foreach(buddies, [](gpointer data, gpointer user_data) {
+				purple_blist_remove_buddy(PURPLE_BUDDY(data));
+			}, NULL);
+			g_slist_free(buddies);
+			
+			// request info because we'll only get it for online friends
+			steam->client.RequestUserInfo(count, users);
+		}
+		
+		while (count--) {
+			auto &user = users[count];
+			auto &relationship = relationships[count];
+			
+			auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
+			
+			switch (relationship) {
+			case EFriendRelationship::None:
+				purple_blist_remove_buddy(purple_find_buddy(account, user_string));
+				break;
+			case EFriendRelationship::RequestRecipient:
+				// TODO
+				purple_debug_info("steam", "RequestRecipient not implemented\n");
+				break;
+			case EFriendRelationship::Friend:
+				purple_blist_add_buddy(purple_buddy_new(account, user_string, NULL), NULL, NULL, NULL);
+				break;
+			case EFriendRelationship::RequestInitiator:
+				// TODO
+				purple_debug_info("steam", "RequestInitiator not implemented\n");
+				break;
+			default:
+				// TODO
+				purple_debug_info("steam", "EFriendRelationship not implemented: %i\n", relationship);
+			}
+			
+			g_free(user_string);
+		}
+	};
+	
 	steam_connect(account, steam);
 }
 

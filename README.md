@@ -79,7 +79,7 @@ Note that this is very unstable and will crash at any opportunity. If it happens
 3. Run the following in the SteamPP directory in MinGW Shell:
   
   ```
-  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLIB_EAY=/mingw/libcrypto.a -DSSL_EAY=/mingw/libssl.a -DLibArchive_LIBRARY=/mingw/lib/libarchive.a -DCMAKE_PREFIX_PATH=/mingw:../pidgin-devel/pidgin-2.10.7/libpurple:../pidgin-devel/win32-dev/gtk_2_0-2.14 -DCMAKE_MODULE_LINKER_FLAGS="-static-libgcc -static-libstdc++" -DSTEAMRE=../steamre
+  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLIB_EAY=/mingw/libcrypto.a -DSSL_EAY=/mingw/libssl.a -DLibArchive_LIBRARY=/mingw/lib/libarchive.a -DCMAKE_PREFIX_PATH=../pidgin-devel/pidgin-2.10.7/libpurple:../pidgin-devel/win32-dev/gtk_2_0-2.14:/mingw -DCMAKE_MODULE_LINKER_FLAGS="-static-libgcc -static-libstdc++" -DSTEAMRE=../steamre
   ```
 4. Run `make steam`.
 5. Copy the resulting libsteam.dll file into `%appdata%\.purple\plugins`.

@@ -11,15 +11,7 @@
 #include <unistd.h>
 #endif
 
-#define PURPLE_PLUGINS
-
-#include <glib.h>
-
-#include "debug.h"
-#include "notify.h"
-#include "plugin.h"
-#include "request.h"
-#include "version.h"
+#include <purple.h>
 
 using namespace Steam;
 
@@ -152,13 +144,22 @@ static void steam_login(PurpleAccount* account) {
 	
 	steam->client.onHandshake = [steam, account] {
 		auto base64 = purple_account_get_string(account, "sentry_hash", nullptr);
-		if (base64) {
-			auto hash = purple_base64_decode(base64, NULL);
-			steam->client.LogOn(purple_account_get_username(account), purple_account_get_password(account), hash);
-			g_free(hash);
-		} else {
-			steam->client.LogOn(purple_account_get_username(account), purple_account_get_password(account));
+		guchar* hash = nullptr;
+		
+		if (base64)
+			hash = purple_base64_decode(base64, NULL);
+		
+		SteamID steamID;
+		auto steamID_string = purple_account_get_string(account, "steamid", nullptr);
+		if (steamID_string && purple_account_get_bool(account, "console", FALSE)) {
+			steamID = g_ascii_strtoull(steamID_string, NULL, 10);
+			steamID.instance = 2;
 		}
+		
+		steam->client.LogOn(purple_account_get_username(account), purple_account_get_password(account), hash, nullptr, steamID);
+		
+		if (base64)
+			g_free(hash);
 	};
 	
 	steam->client.onLogOn = [account, pc, steam](EResult result, SteamID steamID) {
@@ -169,6 +170,7 @@ static void steam_login(PurpleAccount* account) {
 			steam->client.SetPersonaState(EPersonaState::Online);
 			purple_connection_set_state(pc, PURPLE_CONNECTED);
 			purple_connection_set_display_name(pc, steamID_string);
+			purple_account_set_string(account, "steamid", steamID_string);
 			break;
 		case EResult::AccountLogonDenied:
 			purple_request_input(
@@ -638,7 +640,21 @@ static PurplePluginInfo info = {
 	NULL
 };
 
-static void init_plugin(PurplePlugin* plugin) { }
+static void init_plugin(PurplePlugin* plugin) {
+	auto &options = prpl_info.protocol_options;
+	
+	options = g_list_append(options, purple_account_option_string_new(
+		"SteamID (auto-filled and only needed for console instance)",
+		"steamid",
+		""
+	));
+	
+	options = g_list_append(options, purple_account_option_bool_new(
+		"Use console instance (requires SteamID and doesn't kick off Steam client)",
+		"console",
+		FALSE
+	));
+}
 
 extern "C" {
 	PURPLE_INIT_PLUGIN(steam, init_plugin, info)

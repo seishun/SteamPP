@@ -336,13 +336,17 @@ static void steam_login(PurpleAccount* account) {
 	
 	steam->client.onChatMsg = [pc](SteamID room, SteamID chatter, const char* message) {
 		auto chatter_string = g_strdup_printf("%" G_GUINT64_FORMAT, chatter);
-		serv_got_chat_in(pc, room.ID, chatter_string, PURPLE_MESSAGE_RECV, message, time(NULL));
+		auto html = purple_markup_escape_text(message, -1);
+		serv_got_chat_in(pc, room.ID, chatter_string, PURPLE_MESSAGE_RECV, html, time(NULL));
+		g_free(html);
 		g_free(chatter_string);
 	};
 	
 	steam->client.onPrivateMsg = [pc](SteamID user, const char* message) {
 		auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
-		serv_got_im(pc, user_string, message, PURPLE_MESSAGE_RECV, time(NULL));
+		auto html = purple_markup_escape_text(message, -1);
+		serv_got_im(pc, user_string, html, PURPLE_MESSAGE_RECV, time(NULL));
+		g_free(html);
 		g_free(user_string);
 	};
 	
@@ -423,7 +427,9 @@ static GList* steam_chat_info(PurpleConnection* gc) {
 
 static int steam_send_im(PurpleConnection* pc, const char* who, const char* message, PurpleMessageFlags flags) {
 	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
-	steam->client.SendPrivateMessage(g_ascii_strtoull(who, NULL, 10), message);
+	auto stripped = purple_unescape_html(message);
+	steam->client.SendPrivateMessage(g_ascii_strtoull(who, NULL, 10), stripped);
+	g_free(stripped);
 	return 1;
 }
 
@@ -497,13 +503,15 @@ void steam_chat_leave(PurpleConnection* pc, int id) {
 
 int steam_chat_send(PurpleConnection* pc, int id, const char* message, PurpleMessageFlags flags) {
 	SteamPurple* steam = (SteamPurple* )pc->proto_data;
+	auto stripped = purple_unescape_html(message);
 	
 	// can't reliably reconstruct a full SteamID from an account ID
-	steam->client.SendChatMessage(g_ascii_strtoull(purple_conversation_get_name(purple_find_chat(pc, id)), NULL, 10), message);
+	steam->client.SendChatMessage(g_ascii_strtoull(purple_conversation_get_name(purple_find_chat(pc, id)), NULL, 10), stripped);
 	
 	// the message doesn't get echoed automatically
 	serv_got_chat_in(pc, id, purple_connection_get_display_name(pc), PURPLE_MESSAGE_SEND, message, time(NULL));
 	
+	g_free(stripped);
 	return 1;
 }
 

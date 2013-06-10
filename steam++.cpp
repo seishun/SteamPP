@@ -22,7 +22,10 @@ SteamClient::~SteamClient() {
 	delete cmClient;
 }
 
-void SteamClient::LogOn(const char* username, const char* password, const unsigned char hash[20], const char* code) {
+void SteamClient::LogOn(const char* username, const char* password, const unsigned char hash[20], const char* code, SteamID steamID) {
+	if (steamID)
+		cmClient->steamID = steamID;
+	
 	CMsgClientLogon logon;
 	logon.set_account_name(username);
 	logon.set_password(password);

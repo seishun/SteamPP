@@ -203,7 +203,7 @@ namespace Steam {
 			const char* username,
 			const char* password,
 			
-			// if your account uses Steam Guard, you should provide at least one of the below:
+			// if your account uses Steam Guard, you should provide at least one of the below two:
 			
 			// your sentry file hash (see onSentry)
 			// if you have previously logged into another account, you can reuse its hash
@@ -212,7 +212,10 @@ namespace Steam {
 			
 			// required if you are logging into this account for the first time
 			// if not provided, onLogOn will get EResult::AccountLogonDenied and you will receive an email with the code
-			const char* code = nullptr
+			const char* code = nullptr,
+			
+			// only needed if you are logging into a non-default instance
+			SteamID steamID = 0
 		);
 		
 		// you'll want to call this with EPersonaState::Online upon logon to become visible

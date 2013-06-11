@@ -359,7 +359,7 @@ static void steam_login(PurpleAccount* account) {
 	steam->client.onRelationships = [account, steam](bool incremental, std::size_t count, SteamID users[], EFriendRelationship relationships[]) {
 		if (!incremental) {
 			// clear list
-			auto buddies = purple_blist_get_buddies();
+			auto buddies = purple_find_buddies(account, NULL);
 			g_slist_foreach(buddies, [](gpointer data, gpointer user_data) {
 				purple_blist_remove_buddy(PURPLE_BUDDY(data));
 			}, NULL);

@@ -62,7 +62,7 @@ A small project that uses [libuv](https://github.com/joyent/libuv) as the backen
 
 ## steampurple
 
-A libpurple plugin. Currently supports joining chats, leaving chats, sending messages to chats and receiving messages from chats.
+A libpurple plugin. Currently supports joining and leaving chats, sending and receiving friend and chat messages, as well as logging in simultaneously with the Steam client.
 
 Note that this is very unstable and will crash at any opportunity. If it happens, please don't hesitate to submit an issue with the debug log.
 

@@ -19,7 +19,7 @@ set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
 include_directories(
 	${PROTOBUF_INCLUDE_DIRS}
-        ${CRYPTOPP_INCLUDE_DIR}
+	${CRYPTOPP_INCLUDE_DIR}
 	${LibArchive_INCLUDE_DIRS}
 	${CMAKE_BINARY_DIR}
 )
@@ -33,7 +33,7 @@ add_library(steam++
 
 target_link_libraries(steam++
 	${PROTOBUF_LIBRARIES}
-        ${CRYPTOPP_LIBRARIES}
+	${CRYPTOPP_LIBRARIES}
 	${LibArchive_LIBRARIES}
 )
 

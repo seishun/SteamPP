@@ -7,7 +7,9 @@
 extern const char* MAGIC;
 extern std::uint32_t PROTO_MASK;
 
-class Steam::SteamClient::CMClient {
+using namespace Steam;
+
+class SteamClient::CMClient {
 public:
 	CMClient(std::function<void(std::size_t length, std::function<void(unsigned char* buffer)> fill)> write);
 	~CMClient();

@@ -5,8 +5,6 @@
 const char* MAGIC = "VT01";
 std::uint32_t PROTO_MASK = 0x80000000;
 
-using namespace Steam;
-
 SteamClient::CMClient::CMClient(std::function<void(std::size_t, std::function<void(unsigned char*)>)> write) : write(std::move(write)) {
 	steamID.instance = 1;
 	steamID.universe = static_cast<unsigned>(EUniverse::Public);

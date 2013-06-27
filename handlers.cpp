@@ -20,8 +20,6 @@ char public_key[] =
 	"6WOiu4gZKODnFMBCiQIBEQ==\n"
 	"-----END PUBLIC KEY-----\n";
 
-using namespace Steam;
-
 void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_t length, std::uint64_t job_id) {
 	switch (emsg) {
 	

@@ -4,8 +4,6 @@
 
 #include "cmclient.h"
 
-using namespace Steam;
-
 SteamID::SteamID(std::uint64_t steamID64) :
 	steamID64(steamID64) {}
 

@@ -16,28 +16,21 @@ Used for serialization of most message types sent to/from Steam servers.
 * Visual Studio: Build libprotobuf.lib (Release), set `PROTOBUF_SRC_ROOT_FOLDER` to the protobuf source directory.
 * MinGW: Set the install prefix to `/mingw` if you're building steampurple. Also note that you have to do this from MinGW Shell.
 
-### OpenSSL
+### Crypto++
 
 Used for encryption.
 
-* Debian/Ubuntu: Install `libssl-dev`.
-* Windows: Install [OpenSSL for Windows](http://slproweb.com/products/Win32OpenSSL.html) into the default installation path. "Light" versions will probably not work.
-* MinGW: If you are building steampurple, get the [static libraries](http://www.wittfella.com/openssl) instead. Extract the files under the `openssl-1.0.1c_static_w32_mingw` directory into your MinGW directory.
-
-### zlib
-  
-Used for CRC32. Also a dependency of libarchive.  
-
-* Debian/Ubuntu: install `libz-dev`.
-* Windows: Install the [GnuWin32 zlib package](http://gnuwin32.sourceforge.net/packages/zlib.htm).
-* Visual Studio: Then edit `<GnuWin32 install dir>\include\zconf.h` and change the `#if` on line 287 to 0 instead of 1. No need to do this for MinGW.
+* Debian/Ubuntu: Install `libcrypto++-dev`.
+* Windows: Download and compile the [latest source](http://www.cryptopp.com/#download).
+* Visual Studio: Extract into a directory named `cryptopp`. In CMake, set the following advanced variables: `CRYPTOPP_ROOT_DIR` to the parent directory of `cryptopp`, `CRYPTOPP_LIBRARY_RELEASE` to the Release build of the library, and optionally `CRYPTOPP_LIBRARY_DEBUG` to the Debug build of the library.
+* MinGW: Follow the [Linux instructions](http://www.cryptopp.com/wiki/Linux#Make_and_Install) in MinGW Shell. If you are building steampurple, set PREFIX to `/mingw`.
 
 ### libarchive
 
 Used for reading .zip archives because that's what Valve uses for data compression.
 
 * Debian/Ubuntu: Install `libarchive-dev`.
-* Windows: [Download](http://www.libarchive.org/) the latest stable release and compile it using the instructions [here](https://github.com/libarchive/libarchive/wiki/BuildInstructions) and below. In CMake, uncheck every checkbox to speed up the process.
+* Windows: [Download](http://www.libarchive.org/) the latest stable release and compile it using the instructions [here](https://github.com/libarchive/libarchive/wiki/BuildInstructions) and below. Make sure to follow their instructions for zip compression support (which should involve installing zlib). In CMake, uncheck every checkbox to speed up the process.
 * Visual Studio: Set the install prefix to somewhere in `CMAKE_PREFIX_PATH` (you can tweak the latter). To install, build the INSTALL project.
 * MinGW: Set the install prefix to your MinGW directory if you're building steampurple. To install, run `mingw32-make install`.
 
@@ -79,7 +72,7 @@ Note that this is very unstable and will crash at any opportunity. If it happens
 3. Run the following in the SteamPP directory in MinGW Shell:
   
   ```
-  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLIB_EAY=/mingw/libcrypto.a -DSSL_EAY=/mingw/libssl.a -DLibArchive_LIBRARY=/mingw/lib/libarchive.a -DCMAKE_PREFIX_PATH=../pidgin-devel/pidgin-2.10.7/libpurple:../pidgin-devel/win32-dev/gtk_2_0-2.14:/mingw -DCMAKE_MODULE_LINKER_FLAGS="-static-libgcc -static-libstdc++" -DSTEAMRE=../steamre
+  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLibArchive_LIBRARY=/mingw/lib/libarchive_static.a -DCMAKE_PREFIX_PATH=../pidgin-devel/pidgin-2.10.7/libpurple:../pidgin-devel/win32-dev/gtk_2_0-2.14:/mingw -DCMAKE_MODULE_LINKER_FLAGS="../pidgin-devel/win32-dev/gtk_2_0-2.14/lib/libz.a -static-libgcc -static-libstdc++" -DSTEAMRE=../steamre
   ```
 4. Run `make steam`.
 5. Copy the resulting libsteam.dll file into `%appdata%\.purple\plugins`.

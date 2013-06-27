@@ -6,7 +6,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 find_package(Protobuf REQUIRED)
 find_package(CryptoPP REQUIRED)
 find_package(LibArchive REQUIRED)
-find_package(ZLIB REQUIRED)
 
 set(STEAMRE $ENV{SteamRE} CACHE PATH "Where you cloned SteamRE")
 set(PROTOBUF_IMPORT_DIRS ${STEAMRE}/Resources/Protobufs)
@@ -22,7 +21,6 @@ include_directories(
 	${PROTOBUF_INCLUDE_DIRS}
         ${CRYPTOPP_INCLUDE_DIR}
 	${LibArchive_INCLUDE_DIRS}
-	${ZLIB_INCLUDE_DIRS}
 	${CMAKE_BINARY_DIR}
 )
 
@@ -37,7 +35,6 @@ target_link_libraries(steam++
 	${PROTOBUF_LIBRARIES}
         ${CRYPTOPP_LIBRARIES}
 	${LibArchive_LIBRARIES}
-	${ZLIB_LIBRARIES}
 )
 
 

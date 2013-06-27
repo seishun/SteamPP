@@ -1,9 +1,8 @@
 #include <algorithm>
 #include <cassert>
 
+#include <cryptopp/crc.h>
 #include <cryptopp/rsa.h>
-
-#include <zlib.h>
 
 #include <archive.h>
 #include <archive_entry.h>
@@ -45,9 +44,7 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 				
 				rsa.Encrypt(cmClient->rnd, cmClient->sessionKey, sizeof(cmClient->sessionKey), crypted_sess_key);
 				
-				auto crc = crc32(0, crypted_sess_key, rsa_size);
-				
-				*reinterpret_cast<std::uint32_t*>(crypted_sess_key + rsa_size) = crc;
+				CRC32().CalculateDigest(crypted_sess_key + rsa_size, crypted_sess_key, rsa_size);
 				*reinterpret_cast<std::uint32_t*>(crypted_sess_key + rsa_size + 4) = 0;
 			});
 		}

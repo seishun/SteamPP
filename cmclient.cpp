@@ -1,6 +1,6 @@
-#include "cmclient.h"
+#include <cryptopp/modes.h>
 
-#include <openssl/rand.h>
+#include "cmclient.h"
 
 const char* MAGIC = "VT01";
 std::uint32_t PROTO_MASK = 0x80000000;
@@ -9,11 +9,6 @@ SteamClient::CMClient::CMClient(std::function<void(std::size_t, std::function<vo
 	steamID.instance = 1;
 	steamID.universe = static_cast<unsigned>(EUniverse::Public);
 	steamID.type = static_cast<unsigned>(EAccountType::Individual);
-	EVP_CIPHER_CTX_init(&ctx);
-}
-
-SteamClient::CMClient::~CMClient() {
-	EVP_CIPHER_CTX_cleanup(&ctx);
 }
 
 void SteamClient::CMClient::WriteMessage(EMsg emsg, std::size_t length, const std::function<void(unsigned char*)> &fill) {
@@ -61,31 +56,20 @@ void SteamClient::CMClient::WritePacket(const std::size_t length, const std::fun
 			auto in_buffer = new unsigned char[length];
 			fill(in_buffer);
 			
-			auto success = EVP_CipherInit_ex(&ctx, EVP_aes_256_ecb(), NULL, sessionKey, NULL, 1);
-			assert(success);
-			
-			unsigned char iv[16];
-			RAND_bytes(iv, sizeof(iv));
+			byte iv[16];
+			rnd.GenerateBlock(iv, 16);
 			
 			auto crypted_iv = out_buffer + 8;
-			
-			EVP_CIPHER_CTX_set_padding(&ctx, 0);
-			int out_len;
-			success = EVP_CipherUpdate(&ctx, crypted_iv, &out_len, iv, sizeof(iv));
-			assert(success);
-			assert(out_len == 16);
-			
-			success = EVP_CipherInit_ex(&ctx, EVP_aes_256_cbc(), NULL, sessionKey, iv, 1);
-			assert(success);
+			ECB_Mode<AES>::Encryption(sessionKey, sizeof(sessionKey)).ProcessData(crypted_iv, iv, sizeof(iv));
 			
 			auto crypted_data = crypted_iv + 16;
-			success = EVP_CipherUpdate(&ctx, crypted_data, &out_len, in_buffer, length);
-			assert(success);
-			
-			int out_len_final;
-			success = EVP_CipherFinal_ex(&ctx, crypted_data + out_len, &out_len_final);
-			assert(success);
-			assert(out_len_final == 16);
+			CBC_Mode<AES>::Encryption e(sessionKey, sizeof(sessionKey), iv);
+			ArraySource(
+				in_buffer,
+				length,
+				true,
+				new StreamTransformationFilter(e, new ArraySink(crypted_data, crypted_size - 16))
+			);
 			
 			*reinterpret_cast<std::uint32_t*>(out_buffer) = crypted_size;
 			std::copy(MAGIC, MAGIC + 4, out_buffer + 4);

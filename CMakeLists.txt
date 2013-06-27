@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 2.8.8)
 project(Steam++)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+
 find_package(Protobuf REQUIRED)
-find_package(OpenSSL REQUIRED)
+find_package(CryptoPP REQUIRED)
 find_package(LibArchive REQUIRED)
 find_package(ZLIB REQUIRED)
 
@@ -18,7 +20,7 @@ set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
 include_directories(
 	${PROTOBUF_INCLUDE_DIRS}
-	${OPENSSL_INCLUDE_DIR}
+        ${CRYPTOPP_INCLUDE_DIR}
 	${LibArchive_INCLUDE_DIRS}
 	${ZLIB_INCLUDE_DIRS}
 	${CMAKE_BINARY_DIR}
@@ -33,7 +35,7 @@ add_library(steam++
 
 target_link_libraries(steam++
 	${PROTOBUF_LIBRARIES}
-	${OPENSSL_LIBRARIES}
+        ${CRYPTOPP_LIBRARIES}
 	${LibArchive_LIBRARIES}
 	${ZLIB_LIBRARIES}
 )
@@ -42,7 +44,6 @@ target_link_libraries(steam++
 # sample project that uses libuv as the event loop
 # to be removed when there is a complete example project somewhere
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 find_package(Libuv)
 if (LIBUV_FOUND)
 	add_executable(steamuv

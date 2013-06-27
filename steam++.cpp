@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <cryptopp/modes.h>
+
 #include "cmclient.h"
 
 SteamID::SteamID(std::uint64_t steamID64) :
@@ -143,34 +145,21 @@ std::size_t SteamClient::readable(const unsigned char* input) {
 	}
 	
 	if (cmClient->encrypted) {
-		auto output = new unsigned char[packetLength];
-		
-		auto success = EVP_CipherInit_ex(&cmClient->ctx, EVP_aes_256_ecb(), NULL, cmClient->sessionKey, NULL, 0);
-		assert(success);
-		
-		unsigned char iv[16];
-		
-		EVP_CIPHER_CTX_set_padding(&cmClient->ctx, 0);
-		int out_len;
-		success = EVP_CipherUpdate(&cmClient->ctx, iv, &out_len, input, 16);
-		assert(success);
-		assert(out_len == 16);
-		
-		success = EVP_CipherInit_ex(&cmClient->ctx, EVP_aes_256_cbc(), NULL, cmClient->sessionKey, iv, 0);
-		assert(success);
+		byte iv[16];
+		ECB_Mode<AES>::Decryption(cmClient->sessionKey, sizeof(cmClient->sessionKey)).ProcessData(iv, input, 16);
 		
 		auto crypted_data = input + 16;
+		CBC_Mode<AES>::Decryption d(cmClient->sessionKey, sizeof(cmClient->sessionKey), iv);
+		// I don't see any way to get the decrypted size other than to use a string
+		std::string output;
+		ArraySource(
+			crypted_data,
+			packetLength - 16,
+			true,
+			new StreamTransformationFilter(d, new StringSink(output))
+		);
 		
-		success = EVP_CipherUpdate(&cmClient->ctx, output, &out_len, crypted_data, packetLength - 16);
-		assert(success);
-		
-		int out_len_final;
-		success = EVP_CipherFinal_ex(&cmClient->ctx, output + out_len, &out_len_final);
-		assert(success);
-		
-		ReadMessage(output, out_len + out_len_final);
-		
-		delete[] output;
+		ReadMessage(reinterpret_cast<const unsigned char*>(output.data()), output.length());
 	} else {
 		ReadMessage(input, packetLength);
 	}

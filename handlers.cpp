@@ -1,24 +1,27 @@
 #include <algorithm>
 #include <cassert>
 
-#include "cmclient.h"
-
-#include <openssl/bio.h>
-#include <openssl/pem.h>
-#include <openssl/rand.h>
+#include <cryptopp/rsa.h>
 
 #include <zlib.h>
 
 #include <archive.h>
 #include <archive_entry.h>
 
-char public_key[] =
-	"-----BEGIN PUBLIC KEY-----\n"
-	"MIGdMA0GCSqGSIb3DQEBAQUAA4GLADCBhwKBgQDf7BrWLBBmLBc1OhSwfFkRf53T\n"
-	"2Ct64+AVzRkeRuh7h3SiGEYxqQMUeYKO6UWiSRKpI2hzic9pobFhRr3Bvr/WARvY\n"
-	"gdTckPv+T1JzZsuVcNfFjrocejN1oWI0Rrtgt4Bo+hOneoo3S57G9F1fOpn5nsQ6\n"
-	"6WOiu4gZKODnFMBCiQIBEQ==\n"
-	"-----END PUBLIC KEY-----\n";
+#include "cmclient.h"
+
+byte public_key[] = {
+	0x30, 0x81, 0x9D, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01,
+	0x05, 0x00, 0x03, 0x81, 0x8B, 0x00, 0x30, 0x81, 0x87, 0x02, 0x81, 0x81, 0x00, 0xDF, 0xEC, 0x1A,
+	0xD6, 0x2C, 0x10, 0x66, 0x2C, 0x17, 0x35, 0x3A, 0x14, 0xB0, 0x7C, 0x59, 0x11, 0x7F, 0x9D, 0xD3,
+	0xD8, 0x2B, 0x7A, 0xE3, 0xE0, 0x15, 0xCD, 0x19, 0x1E, 0x46, 0xE8, 0x7B, 0x87, 0x74, 0xA2, 0x18,
+	0x46, 0x31, 0xA9, 0x03, 0x14, 0x79, 0x82, 0x8E, 0xE9, 0x45, 0xA2, 0x49, 0x12, 0xA9, 0x23, 0x68,
+	0x73, 0x89, 0xCF, 0x69, 0xA1, 0xB1, 0x61, 0x46, 0xBD, 0xC1, 0xBE, 0xBF, 0xD6, 0x01, 0x1B, 0xD8,
+	0x81, 0xD4, 0xDC, 0x90, 0xFB, 0xFE, 0x4F, 0x52, 0x73, 0x66, 0xCB, 0x95, 0x70, 0xD7, 0xC5, 0x8E,
+	0xBA, 0x1C, 0x7A, 0x33, 0x75, 0xA1, 0x62, 0x34, 0x46, 0xBB, 0x60, 0xB7, 0x80, 0x68, 0xFA, 0x13,
+	0xA7, 0x7A, 0x8A, 0x37, 0x4B, 0x9E, 0xC6, 0xF4, 0x5D, 0x5F, 0x3A, 0x99, 0xF9, 0x9E, 0xC4, 0x3A,
+	0xE9, 0x63, 0xA2, 0xBB, 0x88, 0x19, 0x28, 0xE0, 0xE7, 0x14, 0xC0, 0x42, 0x89, 0x02, 0x01, 0x11,
+};
 
 void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_t length, std::uint64_t job_id) {
 	switch (emsg) {
@@ -27,32 +30,25 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 		{
 			auto enc_request = reinterpret_cast<const MsgChannelEncryptRequest*>(data);
 			
-			auto bio = BIO_new_mem_buf(public_key, sizeof(public_key));
-			auto rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
-			BIO_vfree(bio);
+			RSA::PublicKey key;
+			ArraySource source(public_key, sizeof(public_key), true /* pumpAll */);
+			key.Load(source);
+			RSAES_OAEP_SHA_Encryptor rsa(key);
 			
-			auto rsa_size = RSA_size(rsa);
+			auto rsa_size = rsa.FixedCiphertextLength();
 			
 			cmClient->WriteMessage(EMsg::ChannelEncryptResponse, sizeof(MsgChannelEncryptResponse) + rsa_size + 4 + 4, [this, &rsa, rsa_size](unsigned char* buffer) {
 				auto enc_resp = new (buffer) MsgChannelEncryptResponse;
 				auto crypted_sess_key = buffer + sizeof(MsgChannelEncryptResponse); 
 				
-				RAND_bytes(cmClient->sessionKey, sizeof(cmClient->sessionKey));
+				cmClient->rnd.GenerateBlock(cmClient->sessionKey, sizeof(cmClient->sessionKey));
 				
-				RSA_public_encrypt(
-					sizeof(cmClient->sessionKey),
-					cmClient->sessionKey,
-					crypted_sess_key,
-					rsa,
-					RSA_PKCS1_OAEP_PADDING
-				);
+				rsa.Encrypt(cmClient->rnd, cmClient->sessionKey, sizeof(cmClient->sessionKey), crypted_sess_key);
 				
 				auto crc = crc32(0, crypted_sess_key, rsa_size);
 				
 				*reinterpret_cast<std::uint32_t*>(crypted_sess_key + rsa_size) = crc;
 				*reinterpret_cast<std::uint32_t*>(crypted_sess_key + rsa_size + 4) = 0;
-				
-				RSA_free(rsa);
 			});
 		}
 		
@@ -154,7 +150,8 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			machine_auth.ParseFromArray(data, length);
 			auto &bytes = machine_auth.bytes();
 			
-			auto sha = SHA1(reinterpret_cast<const unsigned char*>(&bytes[0]), bytes.length(), NULL);
+			byte sha[20];
+			SHA1().CalculateDigest(sha, reinterpret_cast<const byte*>(bytes.data()), bytes.length());
 			
 			CMsgClientUpdateMachineAuthResponse response;
 			response.set_sha_file(sha, 20);

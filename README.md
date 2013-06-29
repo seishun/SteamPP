@@ -59,6 +59,13 @@ A libpurple plugin. Currently supports joining and leaving chats, sending and re
 
 Note that this is very unstable and will crash at any opportunity. If it happens, please don't hesitate to submit an issue with the debug log.
 
+### Binaries
+
+* [Windows](http://libsteam.sf4.ru/libsteam_windows.zip)
+* [64-bit Linux](http://libsteam.sf4.ru/libsteam_linux64.zip)
+
+You can use the icons from [pidgin-opensteamworks](http://code.google.com/p/pidgin-opensteamworks/downloads/list).
+
 ### Building on Linux
 
 1. Install development packages for libpurple and glib. On Debian/Ubuntu those are `libglib2.0-dev` and `libpurple-dev`

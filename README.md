@@ -74,12 +74,16 @@ You can use the icons from [pidgin-opensteamworks](http://code.google.com/p/pidg
 
 ### Building on MinGW
 
-1. [Build Pidgin](https://developer.pidgin.im/wiki/BuildingWinPidgin?version=147). `pidgin-devel` should be one level above your SteamPP directory (i.e. `pidgin-devel` and `SteamPP` should be in the same folder). The "Crash Reporting Library" link is wrong in the instructions, you need [this one](https://developer.pidgin.im/static/win32/pidgin-inst-deps-20120910.tar.gz) instead. When installing MinGW, additionally check "C++ Compiler" and "MSYS Basic System".
-2. Follow the [instructions above](#building) to set up the dependencies of Steam++ if you haven't yet.
-3. Run the following in the SteamPP directory in MinGW Shell:
+1. Get the prerequisites:
+    * Download and extract the [Pidgin source](http://prdownloads.sourceforge.net/pidgin/pidgin-2.10.7.tar.bz2).
+    * Clone Steam++ next to it (i.e. `pidgin-2.10.7` and `SteamPP` should be in the same folder).
+    * [Install MinGW](http://www.mingw.org/wiki/Getting_Started). In the installer, additionally check "C++ Compiler" and "MSYS Basic System". Then:
+        * Follow the [instructions above](#building) to set up the dependencies of Steam++.
+        * [Download](http://www.gtk.org/download/win32.php) the Dev package for Glib and extract it into your MinGW directory.
+2. Run the following in the SteamPP directory in MinGW Shell:
   
   ```
-  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLibArchive_LIBRARY=/mingw/lib/libarchive_static.a -DCMAKE_PREFIX_PATH=../pidgin-devel/pidgin-2.10.7/libpurple:../pidgin-devel/win32-dev/gtk_2_0-2.14:/mingw -DCMAKE_MODULE_LINKER_FLAGS="../pidgin-devel/win32-dev/gtk_2_0-2.14/lib/libz.a -static-libgcc -static-libstdc++" -DSTEAMKIT=../SteamKit
+  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLibArchive_LIBRARY=/mingw/lib/libarchive_static.a -DCMAKE_PREFIX_PATH=../pidgin-2.10.7/libpurple:/mingw -DCMAKE_LIBRARY_PATH="$PROGRAMFILES/Pidgin" -DCMAKE_MODULE_LINKER_FLAGS="\"$PROGRAMFILES/Pidgin/Gtk/bin/zlib1.dll\" -static-libgcc -static-libstdc++" -DSTEAMKIT=../SteamKit
   ```
-4. Run `make steam`.
-5. Copy the resulting libsteam.dll file into `%appdata%\.purple\plugins`.
+3. Run `make steam`.
+4. Copy the resulting libsteam.dll file into `%appdata%\.purple\plugins`.

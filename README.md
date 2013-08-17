@@ -1,7 +1,7 @@
 Steam++
 =======
 
-This is a C++ port of [SteamKit2](https://bitbucket.org/VoiDeD/steamre). It's framework-agnostic – you should be able to integrate it with any event loop.
+This is a C++ port of [SteamKit2](https://github.com/SteamRE/SteamKit). It's framework-agnostic – you should be able to integrate it with any event loop.
 
 ## Building
 
@@ -34,8 +34,8 @@ Used for reading .zip archives because that's what Valve uses for data compressi
 * Visual Studio: Set the install prefix to somewhere in `CMAKE_PREFIX_PATH` (you can tweak the latter). To install, build the INSTALL project.
 * MinGW: Set the install prefix to your MinGW directory if you're building steampurple. To install, run `mingw32-make install`.
 
-### SteamRE
-[SteamRE](https://bitbucket.org/VoiDeD/steamre) repo contains .proto files we need. If you're building steampurple on MinGW, clone it into SteamPP's parent directory. Otherwise clone it wherever you want, but set either the `SteamRE` environment variable or the `STEAMRE` cache variable to the directory where you cloned it.
+### SteamKit
+[SteamKit](https://github.com/SteamRE/SteamKit) repo contains .proto files we need. If you're building steampurple on MinGW, clone it into SteamPP's parent directory. Otherwise clone it wherever you want, but set the `STEAMKIT` cache variable to the directory where you cloned it.
 
 ## Usage
 
@@ -79,7 +79,7 @@ You can use the icons from [pidgin-opensteamworks](http://code.google.com/p/pidg
 3. Run the following in the SteamPP directory in MinGW Shell:
   
   ```
-  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLibArchive_LIBRARY=/mingw/lib/libarchive_static.a -DCMAKE_PREFIX_PATH=../pidgin-devel/pidgin-2.10.7/libpurple:../pidgin-devel/win32-dev/gtk_2_0-2.14:/mingw -DCMAKE_MODULE_LINKER_FLAGS="../pidgin-devel/win32-dev/gtk_2_0-2.14/lib/libz.a -static-libgcc -static-libstdc++" -DSTEAMRE=../steamre
+  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLibArchive_LIBRARY=/mingw/lib/libarchive_static.a -DCMAKE_PREFIX_PATH=../pidgin-devel/pidgin-2.10.7/libpurple:../pidgin-devel/win32-dev/gtk_2_0-2.14:/mingw -DCMAKE_MODULE_LINKER_FLAGS="../pidgin-devel/win32-dev/gtk_2_0-2.14/lib/libz.a -static-libgcc -static-libstdc++" -DSTEAMKIT=../SteamKit
   ```
 4. Run `make steam`.
 5. Copy the resulting libsteam.dll file into `%appdata%\.purple\plugins`.

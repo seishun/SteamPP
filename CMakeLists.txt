@@ -7,8 +7,8 @@ find_package(Protobuf REQUIRED)
 find_package(CryptoPP REQUIRED)
 find_package(LibArchive REQUIRED)
 
-set(STEAMRE $ENV{SteamRE} CACHE PATH "Where you cloned SteamRE")
-set(PROTOBUF_IMPORT_DIRS ${STEAMRE}/Resources/Protobufs)
+set(STEAMKIT $ENV{SteamRE} CACHE PATH "Where you cloned SteamKit")
+set(PROTOBUF_IMPORT_DIRS ${STEAMKIT}/Resources/Protobufs)
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS
 	${PROTOBUF_IMPORT_DIRS}/steamclient/steammessages_clientserver.proto
 	${PROTOBUF_IMPORT_DIRS}/steamclient/steammessages_base.proto

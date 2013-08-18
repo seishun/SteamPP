@@ -1,4 +1,6 @@
 #include <cassert>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -270,6 +272,45 @@ static void steam_login(PurpleAccount* account) {
 				break;
 			}
 			purple_prpl_got_user_status(account, user_string, purple_primitive_get_id_from_type(prim), NULL);
+		}
+		
+		if (avatar_hash) {
+			// is this really the simplest way to get a hex string? shame on you, C++
+			std::ostringstream ss;
+			ss << std::hex << std::setfill('0');
+			for (auto i = 0; i < 20; i++)
+				ss << std::setw(2) << static_cast<unsigned>(avatar_hash[i]);
+			auto new_avatar = ss.str();
+			
+			purple_debug_info("steam", "%s has avatar %s\n", user_string, new_avatar.c_str());
+			
+			auto buddy = purple_find_buddy(account, user_string);
+			if (!buddy) {
+				purple_debug_info("steam", "buddy %s not found\n", user_string);
+				return;
+			}
+			
+			auto icon = purple_buddy_icons_find(account, user_string);
+			if (icon) {
+				auto old_avatar = purple_buddy_icon_get_checksum(icon);
+				purple_debug_info("steam", "old avatar was: %s\n", old_avatar);
+				if (old_avatar == new_avatar)
+					return;
+			}
+			
+			purple_util_fetch_url(
+				("http://media.steampowered.com/steamcommunity/public/images/avatars/" + new_avatar.substr(0, 2) + "/" + new_avatar + ".jpg").c_str(),
+				TRUE,
+				NULL,
+				FALSE,
+				[](PurpleUtilFetchUrlData *url_data, gpointer user_data, const gchar *url_text, gsize len, const gchar *error_message) {
+					auto buddy = PURPLE_BUDDY(user_data);
+					// can't be arsed to pass both the buddy and the hash, so just recalculate the latter
+					auto hash = purple_util_get_image_checksum(url_text, len);
+					purple_buddy_icons_set_for_user(purple_buddy_get_account(buddy), purple_buddy_get_name(buddy), g_memdup(url_text, len), len, hash);
+				},
+				buddy
+			);
 		}
 		
 		g_free(user_string);

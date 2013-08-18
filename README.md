@@ -61,8 +61,7 @@ Note that this is very unstable and will crash at any opportunity. If it happens
 
 ### Binaries
 
-* [Windows](http://libsteam.sf4.ru/libsteam_windows.zip)
-* [64-bit Linux](http://libsteam.sf4.ru/libsteam_linux64.zip)
+Get the latest release [here](https://github.com/seishun/SteamPP/releases).
 
 You can use the icons from [pidgin-opensteamworks](http://code.google.com/p/pidgin-opensteamworks/downloads/list).
 

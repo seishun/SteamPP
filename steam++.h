@@ -161,8 +161,9 @@ namespace Steam {
 		// EAccountType::Invalid: user is your (potential) friend; source is zero
 		// name is the user's new profile name
 		// state is the user's new state
+		// avatar_hash is the user's new avatar hash
 		// more parameters to be added
-		std::function<void(SteamID user, SteamID* source, const char* name, EPersonaState* state)> onUserInfo;
+		std::function<void(SteamID user, SteamID* source, const char* name, EPersonaState* state, const unsigned char avatar_hash[20])> onUserInfo;
 		
 		// should be called in response to `JoinChat`
 		// anything other than `EChatRoomEnterResponse::Success` denotes an error

@@ -218,7 +218,13 @@ static void steam_login(PurpleAccount* account) {
 		g_free(base64);
 	};
 	
-	steam->client.onUserInfo = [pc, account](SteamID user, SteamID* source, const char* name, EPersonaState* state) {
+	steam->client.onUserInfo = [pc, account](
+		SteamID user,
+		SteamID* source,
+		const char* name,
+		EPersonaState* state,
+		const unsigned char avatar_hash[20]
+	) {
 		auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
 		
 		if (source && static_cast<EAccountType>(source->type) == EAccountType::Chat) {

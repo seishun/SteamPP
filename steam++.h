@@ -152,6 +152,8 @@ namespace Steam {
 		 */
 		std::function<void(EResult result, SteamID steamID)> onLogOn;
 		
+		std::function<void(EResult result)> onLogOff;
+		
 		std::function<void(const unsigned char hash[20])> onSentry;
 		
 		/**

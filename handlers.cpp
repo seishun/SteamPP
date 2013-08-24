@@ -137,6 +137,19 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 		
 		break;
 		
+	case EMsg::ClientLoggedOff:
+		{
+			if (!onLogOff) {
+				return;
+			}
+			
+			CMsgClientLoggedOff logged_off;
+			logged_off.ParseFromArray(data, length);
+			onLogOff(static_cast<EResult>(logged_off.eresult()));
+		}
+		
+		break;
+		
 	case EMsg::ClientUpdateMachineAuth:
 		{
 			if (!onSentry) {

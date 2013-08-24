@@ -113,60 +113,55 @@ namespace Steam {
 	
 	class SteamClient {
 	public:
+		/**
+		 * @param write         Called when SteamClient wants to send some data over the socket.
+		 *                      Allocate a buffer of @a length bytes, then call @a fill with it, then send it.
+		 * @param set_interval  @a callback must be called every @a timeout seconds as long as the connection is alive.
+		 */
 		SteamClient(
-			// called when SteamClient wants to send some data over the socket
-			// allocate a buffer of `length` bytes, then call `fill` with it, then send it
 			std::function<void(std::size_t length, std::function<void(unsigned char* buffer)> fill)> write,
-			
-			// `callback` must be called every `timeout` seconds as long as the connection is alive
 			std::function<void(std::function<void()> callback, int timeout)> set_interval
 		);
 		
 		~SteamClient();
 		
 		
-		/* slots */
-		
-		// connection has been established
-		// returns the number of bytes SteamClient expects next
+		/**
+		 * Call when a connection has been established.
+		 * 
+		 * @return The number of bytes SteamClient expects next.
+		 */
 		std::size_t connected();
 		
-		// data has been received
-		// `buffer` must be of the length previously returned by `connected` or `readable`
-		// returns the number of bytes SteamClient expects next
+		/**
+		 * Call when data has been received.
+		 * 
+		 * @param buffer    Must be of the length previously returned by #connected or #readable.
+		 * @return The number of bytes SteamClient expects next.
+		 */
 		std::size_t readable(const unsigned char* buffer);
 		
 		
-		/* signals */
-		
-		// encryption handshake complete
-		// it's now safe to log on
+		/**
+		 * Encryption handshake complete – it's now safe to log on.
+		 */
 		std::function<void()> onHandshake;
 		
-		// logon response received
-		// EResult::OK means the logon was successful
-		// anything else is an error and Steam should close the socket imminently
-		// steamID is your SteamID
+		/**
+		 * @a steamID is your SteamID.
+		 */
 		std::function<void(EResult result, SteamID steamID)> onLogOn;
 		
-		// if LogOn was called without a hash, this is your new hash
-		// you should save it and use it for your further logons - it will not expire unlike the code
 		std::function<void(const unsigned char hash[20])> onSentry;
 		
-		// Steam is sending information about a user, possibly triggered by a change
-		// each parameter except `user` is optional and will equal `nullptr` if unset
-		// source is the reason Steam is sending this - depending on static_cast<EAccountType>(source.type):
-		// EAccountType::Chat: user shares a chat with you; source is the chat's ID
-		// EAccountType::Clan: user shares a small group with you; source is the group's ID
-		// EAccountType::Invalid: user is your (potential) friend; source is zero
-		// name is the user's new profile name
-		// state is the user's new state
-		// avatar_hash is the user's new avatar hash
-		// more parameters to be added
+		/**
+		 * Each parameter except @a user is optional and will equal @c nullptr if unset.
+		 */
 		std::function<void(SteamID user, SteamID* source, const char* name, EPersonaState* state, const unsigned char avatar_hash[20])> onUserInfo;
 		
-		// should be called in response to `JoinChat`
-		// anything other than `EChatRoomEnterResponse::Success` denotes an error
+		/**
+		 * Should be called in response to #JoinChat.
+		 */
 		std::function<void(
 			SteamID room,
 			EChatRoomEnterResponse response,
@@ -175,54 +170,47 @@ namespace Steam {
 			const ChatMember members[]
 		)> onChatEnter;
 		
-		// something has happened in a chat you are in
+		/**
+		 * @a member is invalid unless @a state_change == @c EChatMemberStateChange::Entered.
+		 */
 		std::function<void(
 			SteamID room,
 			SteamID acted_by,
 			SteamID acted_on,
 			EChatMemberStateChange state_change,
-			const ChatMember* member // invalid unless state_change == EChatMemberStateChange::Entered
+			const ChatMember* member
 		)> onChatStateChange;
 		
-		// a message has been received in a chat
 		std::function<void(SteamID room, SteamID chatter, const char* message)> onChatMsg;
 		
-		// a private message has been received
 		std::function<void(SteamID user, const char* message)> onPrivateMsg;
 		
-		// someone has started typing a message
 		std::function<void(SteamID user)> onTyping;
 		
-		// n-th SteamID corresponds to n-th relationship
+		/**
+		 * N-th SteamID corresponds to n-th relationship.
+		 */
 		std::function<void(bool incremental, std::size_t count, SteamID users[], EFriendRelationship relationships[])> onRelationships;
 		
 		
-		/* methods */
-		
-		// call this after the encryption handshake (see onHandshake)
+		/**
+		 * Call this after the encryption handshake. @a steamID is only needed if you are logging into a non-default instance.
+		 * 
+		 * @see onHandshake
+		 */
 		void LogOn(
 			const char* username,
 			const char* password,
-			
-			// if your account uses Steam Guard, you should provide at least one of the below two:
-			
-			// your sentry file hash (see onSentry)
-			// if you have previously logged into another account, you can reuse its hash
-			// otherwise, pass nullptr
-			const unsigned char hash[20] = nullptr,
-			
-			// required if you are logging into this account for the first time
-			// if not provided, onLogOn will get EResult::AccountLogonDenied and you will receive an email with the code
+			const unsigned char sentry_hash[20] = nullptr,
 			const char* code = nullptr,
-			
-			// only needed if you are logging into a non-default instance
 			SteamID steamID = 0
 		);
 		
-		// you'll want to call this with EPersonaState::Online upon logon to become visible
 		void SetPersonaState(EPersonaState state);
 		
-		// see `onChatEnter`
+		/**
+		 * @see onChatEnter
+		 */
 		void JoinChat(SteamID chat);
 		
 		void LeaveChat(SteamID chat);
@@ -233,7 +221,9 @@ namespace Steam {
 		
 		void SendTyping(SteamID user);
 		
-		// see `onUserInfo`
+		/**
+		 * @see onUserInfo
+		 */
 		void RequestUserInfo(std::size_t count, SteamID users[]);
 		
 	private:

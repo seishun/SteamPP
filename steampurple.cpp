@@ -210,11 +210,26 @@ static void steam_login(PurpleAccount* account) {
 			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, "This server is down");
 			break;
 		default:
-			purple_debug_error("steam", "Unknown eresult: %i\n", result);
+			purple_debug_error("steam", "Unknown logon eresult: %i\n", result);
 			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_OTHER_ERROR, "Unknown error");
 		}
 		
 		g_free(steamID_string);
+	};
+	
+	steam->client.onLogOff = [pc](EResult result) {
+		switch (result) {
+		case EResult::LoggedInElsewhere:
+		case EResult::LogonSessionReplaced:
+			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_OTHER_ERROR, "Logged in elsewhere");
+			break;
+		case EResult::ServiceUnavailable:
+			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, "Steam went down");
+			break;
+		default:
+			purple_debug_error("steam", "Unknown logoff eresult: %i\n", result);
+			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_OTHER_ERROR, "Unknown error");
+		}
 	};
 	
 	steam->client.onSentry = [account](const unsigned char hash[20]) {

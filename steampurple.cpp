@@ -197,6 +197,9 @@ static void steam_login(PurpleAccount* account) {
 			close(steam->fd);
 			purple_input_remove(steam->watcher);
 			break;
+		case EResult::AlreadyLoggedInElsewhere:
+			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_OTHER_ERROR, "Already logged in elsewhere");
+			break;
 		case EResult::InvalidPassword:
 			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_AUTHENTICATION_FAILED, "Invalid password");
 			break;

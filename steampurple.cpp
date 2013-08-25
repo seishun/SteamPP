@@ -173,7 +173,8 @@ static void steam_login(PurpleAccount* account) {
 			purple_connection_set_state(pc, PURPLE_CONNECTED);
 			purple_connection_set_display_name(pc, steamID_string);
 			purple_account_set_string(account, "steamid", steamID_string);
-			break;
+			g_free(steamID_string);
+			return;
 		case EResult::AccountLogonDenied:
 			purple_request_input(
 				/* handle */        NULL,
@@ -214,10 +215,11 @@ static void steam_login(PurpleAccount* account) {
 			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_OTHER_ERROR, "Unknown error");
 		}
 		
+		purple_input_remove(steam->watcher); // on Linux, steam_close is called too late and Pidgin catches the EOF
 		g_free(steamID_string);
 	};
 	
-	steam->client.onLogOff = [pc](EResult result) {
+	steam->client.onLogOff = [pc, steam](EResult result) {
 		switch (result) {
 		case EResult::LoggedInElsewhere:
 		case EResult::LogonSessionReplaced:
@@ -230,6 +232,8 @@ static void steam_login(PurpleAccount* account) {
 			purple_debug_error("steam", "Unknown logoff eresult: %i\n", result);
 			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_OTHER_ERROR, "Unknown error");
 		}
+		
+		purple_input_remove(steam->watcher); // on Linux, steam_close is called too late and Pidgin catches the EOF
 	};
 	
 	steam->client.onSentry = [account](const unsigned char hash[20]) {

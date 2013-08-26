@@ -431,11 +431,15 @@ static void steam_login(PurpleAccount* account) {
 		std::map<SteamID, EClanRelationship> &groups
 	) {
 		if (!incremental) {
-			// clear list
+			// remove buddies who are no longer friends
 			auto buddies = purple_find_buddies(account, NULL);
 			g_slist_foreach(buddies, [](gpointer data, gpointer user_data) {
-				purple_blist_remove_buddy(PURPLE_BUDDY(data));
-			}, NULL);
+				auto userz = *reinterpret_cast<decltype(&users)>(user_data);
+				auto buddy = PURPLE_BUDDY(data);
+				if (userz[g_ascii_strtoull(purple_buddy_get_name(buddy), NULL, 10)] != EFriendRelationship::Friend) {
+					purple_blist_remove_buddy(buddy);
+				}
+			}, &users);
 			g_slist_free(buddies);
 		}
 		
@@ -456,7 +460,8 @@ static void steam_login(PurpleAccount* account) {
 			case EFriendRelationship::Friend:
 				if (!incremental)
 					friends.push_back(user);
-				purple_blist_add_buddy(purple_buddy_new(account, user_string, NULL), NULL, NULL, NULL);
+				if (!purple_find_buddy(account, user_string))
+					purple_blist_add_buddy(purple_buddy_new(account, user_string, NULL), NULL, NULL, NULL);
 				break;
 			case EFriendRelationship::RequestInitiator:
 				// TODO

@@ -1,4 +1,5 @@
 #include <functional>
+#include <map>
 #include "steam_language/steam_language.h"
 
 namespace Steam {
@@ -189,10 +190,11 @@ namespace Steam {
 		
 		std::function<void(SteamID user)> onTyping;
 		
-		/**
-		 * N-th SteamID corresponds to n-th relationship.
-		 */
-		std::function<void(bool incremental, std::size_t count, SteamID users[], EFriendRelationship relationships[])> onRelationships;
+		std::function<void(
+			bool incremental,
+			std::map<SteamID, EFriendRelationship> &users,
+			std::map<SteamID, EClanRelationship> &groups
+		)> onRelationships;
 		
 		
 		/**

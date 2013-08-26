@@ -275,15 +275,19 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			CMsgClientFriendsList list;
 			list.ParseFromArray(data, length);
 			
-			std::vector<SteamID> steamids;
-			std::vector<EFriendRelationship> relationships;
+			std::map<SteamID, EFriendRelationship> users;
+			std::map<SteamID, EClanRelationship> groups;
 			
-			for (auto &user : list.friends()) {
-				steamids.push_back(user.ulfriendid());
-				relationships.push_back(static_cast<EFriendRelationship>(user.efriendrelationship()));
+			for (auto &relationship : list.friends()) {
+				SteamID steamID = relationship.ulfriendid();
+				if (static_cast<EAccountType>(steamID.type) == EAccountType::Clan) {
+					groups[steamID] = static_cast<EClanRelationship>(relationship.efriendrelationship());
+				} else {
+					users[steamID] = static_cast<EFriendRelationship>(relationship.efriendrelationship());
+				}
 			}
 			
-			onRelationships(list.bincremental(), list.friends_size(), steamids.data(), relationships.data());
+			onRelationships(list.bincremental(), users, groups);
 		}
 		
 		break;

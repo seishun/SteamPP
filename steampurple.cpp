@@ -425,7 +425,11 @@ static void steam_login(PurpleAccount* account) {
 		g_free(user_string);
 	};
 	
-	steam->client.onRelationships = [account, steam](bool incremental, std::size_t count, SteamID users[], EFriendRelationship relationships[]) {
+	steam->client.onRelationships = [account, steam](
+		bool incremental,
+		std::map<SteamID, EFriendRelationship> &users,
+		std::map<SteamID, EClanRelationship> &groups
+	) {
 		if (!incremental) {
 			// clear list
 			auto buddies = purple_find_buddies(account, NULL);
@@ -433,18 +437,15 @@ static void steam_login(PurpleAccount* account) {
 				purple_blist_remove_buddy(PURPLE_BUDDY(data));
 			}, NULL);
 			g_slist_free(buddies);
-			
-			// request info because we'll only get it for online friends
-			steam->client.RequestUserInfo(count, users);
 		}
 		
-		while (count--) {
-			auto &user = users[count];
-			auto &relationship = relationships[count];
-			
+		std::vector<SteamID> friends;
+		
+		for (auto &relationship : users) {
+			auto &user = relationship.first;
 			auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
 			
-			switch (relationship) {
+			switch (relationship.second) {
 			case EFriendRelationship::None:
 				purple_blist_remove_buddy(purple_find_buddy(account, user_string));
 				break;
@@ -453,6 +454,8 @@ static void steam_login(PurpleAccount* account) {
 				purple_debug_info("steam", "RequestRecipient not implemented\n");
 				break;
 			case EFriendRelationship::Friend:
+				if (!incremental)
+					friends.push_back(user);
 				purple_blist_add_buddy(purple_buddy_new(account, user_string, NULL), NULL, NULL, NULL);
 				break;
 			case EFriendRelationship::RequestInitiator:
@@ -465,6 +468,11 @@ static void steam_login(PurpleAccount* account) {
 			}
 			
 			g_free(user_string);
+		}
+		
+		if (!incremental) {
+			// request info because we'll only get it for online friends
+			steam->client.RequestUserInfo(friends.size(), friends.data());
 		}
 	};
 	

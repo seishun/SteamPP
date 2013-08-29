@@ -434,7 +434,7 @@ static void steam_login(PurpleAccount* account) {
 			// remove buddies who are no longer friends
 			auto buddies = purple_find_buddies(account, NULL);
 			g_slist_foreach(buddies, [](gpointer data, gpointer user_data) {
-				auto userz = *reinterpret_cast<decltype(&users)>(user_data);
+				auto &userz = *reinterpret_cast<decltype(&users)>(user_data);
 				auto buddy = PURPLE_BUDDY(data);
 				if (userz[g_ascii_strtoull(purple_buddy_get_name(buddy), NULL, 10)] != EFriendRelationship::Friend) {
 					purple_blist_remove_buddy(buddy);

@@ -469,7 +469,7 @@ static void steam_login(PurpleAccount* account) {
 				break;
 			default:
 				// TODO
-				purple_debug_info("steam", "EFriendRelationship not implemented: %i\n", relationship);
+				purple_debug_info("steam", "EFriendRelationship not implemented: %i\n", relationship.second);
 			}
 			
 			g_free(user_string);

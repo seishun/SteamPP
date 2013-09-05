@@ -14,7 +14,7 @@ Used for serialization of most message types sent to/from Steam servers.
 * Debian/Ubuntu: Install `libprotobuf-dev`.
 * Windows: [Download](http://code.google.com/p/protobuf/downloads) the latest source and build it yourself following the instructions provided in it and below.
 * Visual Studio: Build libprotobuf.lib (Release), set `PROTOBUF_SRC_ROOT_FOLDER` to the protobuf source directory.
-* MinGW: Set the install prefix to `/mingw` if you're building steampurple. Also note that you have to do this from MinGW Shell.
+* MinGW: Set the install prefix to `/mingw` if you're building steampurple. Also note that you have to do this from MSYS.
 
 ### Crypto++
 
@@ -23,7 +23,7 @@ Used for encryption.
 * Debian/Ubuntu: Install `libcrypto++-dev`.
 * Windows: Download and compile the [latest source](http://www.cryptopp.com/#download).
 * Visual Studio: Extract into a directory named `cryptopp`. In CMake, set the following advanced variables: `CRYPTOPP_ROOT_DIR` to the parent directory of `cryptopp`, `CRYPTOPP_LIBRARY_RELEASE` to the Release build of the library, and optionally `CRYPTOPP_LIBRARY_DEBUG` to the Debug build of the library.
-* MinGW: Follow the [Linux instructions](http://www.cryptopp.com/wiki/Linux#Make_and_Install) in MinGW Shell. If you are building steampurple, set PREFIX to `/mingw`.
+* MinGW: Follow the [Linux instructions](http://www.cryptopp.com/wiki/Linux#Make_and_Install) in MSYS. If you are building steampurple, set PREFIX to `/mingw`.
 
 ### libarchive
 
@@ -76,13 +76,14 @@ You can use the icons from [pidgin-opensteamworks](http://code.google.com/p/pidg
 1. Get the prerequisites:
     * Download and extract the [Pidgin source](http://prdownloads.sourceforge.net/pidgin/pidgin-2.10.7.tar.bz2).
     * Clone Steam++ next to it (i.e. `pidgin-2.10.7` and `SteamPP` should be in the same folder).
-    * [Install MinGW](http://www.mingw.org/wiki/Getting_Started). In the installer, additionally check "C++ Compiler" and "MSYS Basic System". Then:
-        * Follow the [instructions above](#building) to set up the dependencies of Steam++.
+    * Install MinGW in a path without spaces. The mainline build is [broken](https://sourceforge.net/p/mingw/bugs/2024/), use e.g. [MinGW-builds](https://sourceforge.net/projects/mingwbuilds/).
         * [Download](http://www.gtk.org/download/win32.php) the Dev package for Glib and extract it into your MinGW directory.
-2. Run the following in the SteamPP directory in MinGW Shell:
+        * Install [MSYS](https://sourceforge.net/apps/trac/mingw-w64/wiki/MSYS). You can simply uncheck everything except "MSYS Basic System" in the mainline MinGW installer.
+            * Follow the [instructions above](#building) to set up the dependencies of Steam++.
+2. Run the following in the SteamPP directory in MSYS:
   
   ```
-  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLibArchive_LIBRARY=/mingw/lib/libarchive_static.a -DCMAKE_PREFIX_PATH=../pidgin-2.10.7/libpurple:/mingw -DCMAKE_LIBRARY_PATH="$PROGRAMFILES/Pidgin" -DCMAKE_MODULE_LINKER_FLAGS="\"$PROGRAMFILES/Pidgin/Gtk/bin/zlib1.dll\" -static-libgcc -static-libstdc++" -DSTEAMKIT=../SteamKit
+  cmake -G "MSYS Makefiles" -DPROTOBUF_LIBRARY=/mingw/lib/libprotobuf.a -DLibArchive_LIBRARY=/mingw/lib/libarchive_static.a -DCMAKE_PREFIX_PATH=../pidgin-2.10.7/libpurple:/mingw -DCMAKE_LIBRARY_PATH="$PROGRAMFILES/Pidgin" -DCMAKE_MODULE_LINKER_FLAGS="\"$PROGRAMFILES/Pidgin/Gtk/bin/zlib1.dll\" -static -static-libgcc -static-libstdc++" -DSTEAMKIT=../SteamKit
   ```
 3. Run `make steam`.
 4. Copy the resulting libsteam.dll file into `%appdata%\.purple\plugins`.

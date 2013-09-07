@@ -25,6 +25,7 @@ struct SteamPurple {
 	std::vector<unsigned char> write_buffer;
 	std::vector<unsigned char>::size_type read_offset;
 	guint watcher;
+	PurpleProxyConnectData *connect_data;
 	
 	guint timer;
 	std::function<void()> callback;
@@ -65,10 +66,11 @@ GList *steam_status_types(PurpleAccount *account) {
 
 static void steam_connect(PurpleAccount *account, SteamPurple* steam) {
 	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
-	purple_proxy_connect(NULL, account, endpoint.host, endpoint.port, [](gpointer data, gint source, const gchar *error_message) {
+	steam->connect_data = purple_proxy_connect(NULL, account, endpoint.host, endpoint.port, [](gpointer data, gint source, const gchar *error_message) {
 		auto pc = (PurpleConnection *)data;
 		auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 		if (source == -1) {
+			steam->connect_data = NULL;
 			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_message);
 			return;
 		}
@@ -90,6 +92,7 @@ static void steam_connect(PurpleAccount *account, SteamPurple* steam) {
 			}
 		}, steam);
 	}, purple_account_get_connection(account));
+	assert(steam->connect_data);
 }
 
 static void steam_set_steam_guard_token_cb(gpointer data, const gchar *steam_guard_token) {
@@ -495,6 +498,8 @@ static void steam_close(PurpleConnection *pc) {
 		purple_input_remove(steam->watcher);
 		if (steam->timer)
 			purple_timeout_remove(steam->timer);
+	} else if (steam->connect_data) {
+		purple_proxy_connect_cancel(steam->connect_data);
 	}
 	delete steam;
 }

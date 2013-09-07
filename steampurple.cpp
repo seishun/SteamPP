@@ -66,9 +66,12 @@ GList *steam_status_types(PurpleAccount *account) {
 static void steam_connect(PurpleAccount *account, SteamPurple* steam) {
 	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
 	purple_proxy_connect(NULL, account, endpoint.host, endpoint.port, [](gpointer data, gint source, const gchar *error_message) {
-		// TODO: check source and error
-		assert(source != -1);
-		auto steam = reinterpret_cast<SteamPurple*>(data);
+		auto pc = (PurpleConnection *)data;
+		auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
+		if (source == -1) {
+			purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, error_message);
+			return;
+		}
 		steam->fd = source;
 		auto next_length = steam->client.connected();
 		steam->read_buffer.resize(next_length);
@@ -86,7 +89,7 @@ static void steam_connect(PurpleAccount *account, SteamPurple* steam) {
 				steam->read_buffer.resize(next_len);
 			}
 		}, steam);
-	}, steam);
+	}, purple_account_get_connection(account));
 }
 
 static void steam_set_steam_guard_token_cb(gpointer data, const gchar *steam_guard_token) {
@@ -485,12 +488,14 @@ static void steam_login(PurpleAccount *account) {
 }
 
 static void steam_close(PurpleConnection *pc) {
-	// TODO: actually log off maybe
 	purple_debug_info("steam", "Closing...\n");
 	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
-	close(steam->fd);
-	purple_input_remove(steam->watcher);
-	purple_timeout_remove(steam->timer);
+	if (steam->fd) {
+		close(steam->fd);
+		purple_input_remove(steam->watcher);
+		if (steam->timer)
+			purple_timeout_remove(steam->timer);
+	}
 	delete steam;
 }
 

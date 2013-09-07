@@ -30,17 +30,17 @@ struct SteamPurple {
 	std::function<void()> callback;
 };
 
-static gboolean plugin_load(PurplePlugin* plugin) {
+static gboolean plugin_load(PurplePlugin *plugin) {
 	return TRUE;
 }
 
-static const char* steam_list_icon(PurpleAccount* account, PurpleBuddy* buddy) {
+static const char *steam_list_icon(PurpleAccount *account, PurpleBuddy *buddy) {
 	return "steam";
 }
 
-GList* steam_status_types(PurpleAccount* account) {
-	GList* types = NULL;
-	PurpleStatusType* status;
+GList *steam_status_types(PurpleAccount *account) {
+	GList *types = NULL;
+	PurpleStatusType *status;
 	
 	purple_debug_info("steam", "status_types\n");
 	
@@ -63,9 +63,9 @@ GList* steam_status_types(PurpleAccount* account) {
 	return types;
 }
 
-static void steam_connect(PurpleAccount* account, SteamPurple* steam) {
+static void steam_connect(PurpleAccount *account, SteamPurple* steam) {
 	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
-	purple_proxy_connect(NULL, account, endpoint.host, endpoint.port, [](gpointer data, gint source, const gchar* error_message) {
+	purple_proxy_connect(NULL, account, endpoint.host, endpoint.port, [](gpointer data, gint source, const gchar *error_message) {
 		// TODO: check source and error
 		assert(source != -1);
 		auto steam = reinterpret_cast<SteamPurple*>(data);
@@ -89,10 +89,10 @@ static void steam_connect(PurpleAccount* account, SteamPurple* steam) {
 	}, steam);
 }
 
-static void steam_set_steam_guard_token_cb(gpointer data, const gchar* steam_guard_token) {
-	auto pc = reinterpret_cast<PurpleConnection*>(data);
+static void steam_set_steam_guard_token_cb(gpointer data, const gchar *steam_guard_token) {
+	auto pc = (PurpleConnection *)data;
 	auto account = purple_connection_get_account(pc);
-	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 	
 	purple_debug_info("steam", "Got token: %s\n", steam_guard_token);
 	steam_connect(account, steam);
@@ -105,8 +105,8 @@ static void steam_set_steam_guard_token_cb(gpointer data, const gchar* steam_gua
 	};
 }
 
-static void steam_login(PurpleAccount* account) {
-	PurpleConnection* pc = purple_account_get_connection(account);
+static void steam_login(PurpleAccount *account) {
+	auto pc = purple_account_get_connection(account);
 	auto steam = new SteamPurple {
 		// SteamClient constructor
 		{
@@ -119,7 +119,7 @@ static void steam_login(PurpleAccount* account) {
 			// TODO: remove when Ubuntu ships with a newer GCC
 			[account, pc](std::size_t length, std::function<void(unsigned char* buffer)> fill) {
 				// TODO: check if previous write has finished
-				auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+				auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 				steam->write_buffer.resize(length);
 				fill(steam->write_buffer.data());
 				auto len = write(steam->fd, steam->write_buffer.data(), steam->write_buffer.size());
@@ -130,7 +130,7 @@ static void steam_login(PurpleAccount* account) {
 			// set_interval callback
 			// same as above
 			[account, pc](std::function<void()> callback, int timeout) {
-				auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+				auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 				steam->callback = std::move(callback);
 				steam->timer = purple_timeout_add_seconds(timeout, [](gpointer user_data) -> gboolean {
 					auto steam = reinterpret_cast<SteamPurple*>(user_data);
@@ -142,11 +142,11 @@ static void steam_login(PurpleAccount* account) {
 		// value-initialize the rest
 	};
 	
-	pc->proto_data = steam;
+	purple_connection_set_protocol_data(pc, steam);
 	
 	steam->client.onHandshake = [steam, account] {
 		auto base64 = purple_account_get_string(account, "sentry_hash", nullptr);
-		guchar* hash = nullptr;
+		unsigned char* hash = nullptr;
 		
 		if (base64)
 			hash = purple_base64_decode(base64, NULL);
@@ -484,21 +484,20 @@ static void steam_login(PurpleAccount* account) {
 	steam_connect(account, steam);
 }
 
-static void steam_close(PurpleConnection* pc) {
+static void steam_close(PurpleConnection *pc) {
 	// TODO: actually log off maybe
 	purple_debug_info("steam", "Closing...\n");
-	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 	close(steam->fd);
 	purple_input_remove(steam->watcher);
 	purple_timeout_remove(steam->timer);
 	delete steam;
 }
 
-static GList* steam_chat_info(PurpleConnection* gc) {
-	GList* m = NULL;
-	struct proto_chat_entry* pce;
+static GList *steam_chat_info(PurpleConnection *gc) {
+	GList *m = NULL;
 	
-	pce = g_new0(struct proto_chat_entry, 1);
+	auto pce = g_new0(proto_chat_entry, 1);
 	pce->label = "SteamID";
 	pce->identifier = "steamID";
 	pce->required = TRUE;
@@ -507,25 +506,25 @@ static GList* steam_chat_info(PurpleConnection* gc) {
 	return m;
 }
 
-static int steam_send_im(PurpleConnection* pc, const char* who, const char* message, PurpleMessageFlags flags) {
-	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+static int steam_send_im(PurpleConnection *pc, const char *who, const char *message, PurpleMessageFlags flags) {
+	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 	auto stripped = purple_unescape_html(message);
 	steam->client.SendPrivateMessage(g_ascii_strtoull(who, NULL, 10), stripped);
 	g_free(stripped);
 	return 1;
 }
 
-static unsigned int steam_send_typing(PurpleConnection* pc, const gchar* name, PurpleTypingState state) {
-	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+static unsigned int steam_send_typing(PurpleConnection *pc, const gchar *name, PurpleTypingState state) {
+	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 	if (state == PURPLE_TYPING) {
 		steam->client.SendTyping(g_ascii_strtoull(name, NULL, 10));
 	}
 	return 20;
 }
 
-static void steam_set_status(PurpleAccount* account, PurpleStatus* status) {
-	PurpleConnection* pc = purple_account_get_connection(account);
-	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+static void steam_set_status(PurpleAccount *account, PurpleStatus *status) {
+	auto pc = purple_account_get_connection(account);
+	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 	
 	auto prim = purple_status_type_get_primitive(purple_status_get_type(status));
 	EPersonaState state;
@@ -550,17 +549,17 @@ static void steam_set_status(PurpleAccount* account, PurpleStatus* status) {
 	steam->client.SetPersonaState(state);
 }
 
-void steam_join_chat(PurpleConnection* pc, GHashTable* components) {
-	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
-	auto steamID_string = reinterpret_cast<const gchar*>(g_hash_table_lookup(components, "steamID"));
+void steam_join_chat(PurpleConnection *pc, GHashTable *components) {
+	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
+	auto steamID_string = (const gchar *)g_hash_table_lookup(components, "steamID");
 	steam->client.JoinChat(g_ascii_strtoull(steamID_string, NULL, 10));
 }
 
-void steam_chat_leave(PurpleConnection* pc, int id) {
+void steam_chat_leave(PurpleConnection *pc, int id) {
 	auto chat = purple_find_chat(pc, id);
 	auto chat_name = purple_conversation_get_name(chat);
 	
-	auto steam = reinterpret_cast<SteamPurple*>(pc->proto_data);
+	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 	steam->client.LeaveChat(g_ascii_strtoull(chat_name, NULL, 10));
 	
 	// clear the alias storage group
@@ -570,8 +569,8 @@ void steam_chat_leave(PurpleConnection* pc, int id) {
 	auto users = purple_conv_chat_get_users(purple_conversation_get_chat_data(chat));
 	
 	g_list_foreach(users, [](gpointer data, gpointer user_data) {
-		auto chat_buddy = reinterpret_cast<PurpleConvChatBuddy*>(data);
-		auto chat = reinterpret_cast<PurpleConversation*>(user_data);
+		auto chat_buddy = (PurpleConvChatBuddy *)data;
+		auto chat = (PurpleConversation *)user_data;
 		auto group_buddy = purple_find_buddy_in_group(
 			purple_conversation_get_account(chat),
 			purple_conv_chat_cb_get_name(chat_buddy),
@@ -583,8 +582,8 @@ void steam_chat_leave(PurpleConnection* pc, int id) {
 	purple_blist_remove_group(purple_find_group(chat_name));
 }
 
-int steam_chat_send(PurpleConnection* pc, int id, const char* message, PurpleMessageFlags flags) {
-	SteamPurple* steam = (SteamPurple* )pc->proto_data;
+int steam_chat_send(PurpleConnection *pc, int id, const char *message, PurpleMessageFlags flags) {
+	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 	auto stripped = purple_unescape_html(message);
 	
 	// can't reliably reconstruct a full SteamID from an account ID
@@ -730,7 +729,7 @@ static PurplePluginInfo info = {
 	NULL
 };
 
-static void init_plugin(PurplePlugin* plugin) {
+static void init_plugin(PurplePlugin *plugin) {
 	auto &options = prpl_info.protocol_options;
 	
 	options = g_list_append(options, purple_account_option_string_new(

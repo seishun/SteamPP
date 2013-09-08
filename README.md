@@ -78,7 +78,7 @@ You can use the icons from [pidgin-opensteamworks](http://code.google.com/p/pidg
     * Clone Steam++ next to it (i.e. `pidgin-2.10.7` and `SteamPP` should be in the same folder).
     * Install MinGW in a path without spaces. The mainline build is [broken](https://sourceforge.net/p/mingw/bugs/2024/), use e.g. [MinGW-builds](https://sourceforge.net/projects/mingwbuilds/).
         * [Download](http://www.gtk.org/download/win32.php) the Dev package for Glib and extract it into your MinGW directory.
-        * Install [MSYS](https://sourceforge.net/apps/trac/mingw-w64/wiki/MSYS). You can simply uncheck everything except "MSYS Basic System" in the mainline MinGW installer.
+        * Install [MSYS](https://sourceforge.net/apps/trac/mingw-w64/wiki/MSYS).
             * Follow the [instructions above](#building) to set up the dependencies of Steam++.
 2. Run the following in the SteamPP directory in MSYS:
   

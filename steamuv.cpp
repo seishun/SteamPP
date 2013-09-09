@@ -45,15 +45,16 @@ int main() {
 	
 	auto &endpoint = servers[rand() % (sizeof(servers) / sizeof(servers[0]))];
 	auto connect = new uv_connect_t;
-	uv_tcp_connect(connect, &sock, uv_ip4_addr(endpoint.host, endpoint.port), [](uv_connect_t* req, int status) {
+	sockaddr_in addr;
+	uv_ip4_addr(endpoint.host, endpoint.port, &addr);
+	uv_tcp_connect(connect, &sock, (sockaddr*)&addr, [](uv_connect_t* req, int status) {
 		auto length = client.connected();
 		read_buffer.resize(length);
-		uv_read_start(req->handle, [](uv_handle_t* handle, size_t suggested_size) {
-			return uv_buf_init(&read_buffer[read_offset], read_buffer.size() - read_offset);
-		}, [](uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
+		uv_read_start(req->handle, [](uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+			*buf = uv_buf_init(&read_buffer[read_offset], read_buffer.size() - read_offset);
+		}, [](uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
 			if (nread < 1) {
-				auto result = uv_last_error(uv_default_loop());
-				auto str = uv_strerror(result);
+				auto str = uv_strerror(nread);
 			}
 			read_offset += nread;
 			if (read_offset == read_buffer.size()) {

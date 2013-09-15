@@ -78,11 +78,17 @@ static void steam_connect(PurpleAccount *account, SteamPurple* steam) {
 		auto next_length = steam->client.connected();
 		steam->read_buffer.resize(next_length);
 		steam->watcher = purple_input_add(source, PURPLE_INPUT_READ, [](gpointer data, gint source, PurpleInputCondition cond) {
-			auto steam = reinterpret_cast<SteamPurple*>(data);
+			auto pc = (PurpleConnection *)data;
+			auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 			auto len = read(source, &steam->read_buffer[steam->read_offset], steam->read_buffer.size() - steam->read_offset);
 			purple_debug_info("steam", "read: %i\n", len);
 			// len == 0: preceded by a ClientLoggedOff or ClientLogOnResponse, socket should be already closed by us
-			// len == -1: TODO
+			if (len == -1) {
+				purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, strerror(errno));
+				purple_input_remove(steam->watcher); // on Linux, steam_close is called too late and Pidgin catches the EOF
+				steam->watcher = 0;
+				return;
+			}
 			assert(len > 0);
 			steam->read_offset += len;
 			if (steam->read_offset == steam->read_buffer.size()) {
@@ -90,7 +96,7 @@ static void steam_connect(PurpleAccount *account, SteamPurple* steam) {
 				steam->read_offset = 0;
 				steam->read_buffer.resize(next_len);
 			}
-		}, steam);
+		}, pc);
 	}, purple_account_get_connection(account));
 	assert(steam->connect_data);
 }

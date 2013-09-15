@@ -222,6 +222,7 @@ static void steam_login(PurpleAccount *account) {
 		}
 		
 		purple_input_remove(steam->watcher); // on Linux, steam_close is called too late and Pidgin catches the EOF
+		steam->watcher = 0;
 		g_free(steamID_string);
 	};
 	
@@ -240,6 +241,7 @@ static void steam_login(PurpleAccount *account) {
 		}
 		
 		purple_input_remove(steam->watcher); // on Linux, steam_close is called too late and Pidgin catches the EOF
+		steam->watcher = 0;
 	};
 	
 	steam->client.onSentry = [account](const unsigned char hash[20]) {
@@ -495,7 +497,8 @@ static void steam_close(PurpleConnection *pc) {
 	auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 	if (steam->fd) {
 		close(steam->fd);
-		purple_input_remove(steam->watcher);
+		if (steam->watcher)
+			purple_input_remove(steam->watcher);
 		if (steam->timer)
 			purple_timeout_remove(steam->timer);
 	} else if (steam->connect_data) {

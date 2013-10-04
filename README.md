@@ -37,6 +37,8 @@ Used for reading .zip archives because that's what Valve uses for data compressi
 ### SteamKit
 [SteamKit](https://github.com/SteamRE/SteamKit) repo contains .proto files we need. If you're building steampurple on MinGW, clone it into SteamPP's parent directory. Otherwise clone it wherever you want, but set the `STEAMKIT` cache variable to the directory where you cloned it.
 
+On Linux, you'll need `protoc` in your PATH. On Debian/Ubuntu, install `protobuf-compiler`.
+
 ## Usage
 
 Steam++ is designed to be compatible with any framework – in return, you must provide it with an event loop to run in. The communication occurs through callbacks – see steam++.h and the two sample projects to get a basic idea of how it works.

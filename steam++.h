@@ -160,7 +160,14 @@ namespace Steam {
 		/**
 		 * Each parameter except @a user is optional and will equal @c nullptr if unset.
 		 */
-		std::function<void(SteamID user, SteamID* source, const char* name, EPersonaState* state, const unsigned char avatar_hash[20])> onUserInfo;
+		std::function<void(
+			SteamID user,
+			SteamID* source,
+			const char* name,
+			EPersonaState* state,
+			const unsigned char avatar_hash[20],
+			const char* game_name
+		)> onUserInfo;
 		
 		/**
 		 * Should be called in response to #JoinChat.

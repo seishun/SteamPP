@@ -259,7 +259,8 @@ static void steam_login(PurpleAccount *account) {
 		SteamID* source,
 		const char* name,
 		EPersonaState* state,
-		const unsigned char avatar_hash[20]
+		const unsigned char avatar_hash[20],
+		const char* game_name
 	) {
 		auto user_string = std::to_string(user);
 		

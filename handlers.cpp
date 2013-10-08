@@ -190,7 +190,8 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 					user.has_steamid_source() ? &steamid_source : nullptr,
 					user.has_player_name() ? user.player_name().c_str() : nullptr,
 					user.has_persona_state() ? reinterpret_cast<EPersonaState*>(&persona_state) : nullptr,
-					user.has_avatar_hash() ? reinterpret_cast<const unsigned char*>(user.avatar_hash().data()) : nullptr
+					user.has_avatar_hash() ? reinterpret_cast<const unsigned char*>(user.avatar_hash().data()) : nullptr,
+					user.has_game_name() ? user.game_name().c_str() : nullptr
 				);
 			}
 		}

@@ -177,15 +177,14 @@ static void steam_login(PurpleAccount *account) {
 	};
 	
 	steam->client.onLogOn = [account, pc, steam](EResult result, SteamID steamID) {
-		auto steamID_string = g_strdup_printf("%" G_GUINT64_FORMAT, steamID);
+		auto steamID_string = std::to_string(steamID);
 		
 		switch (result) {
 		case EResult::OK:
 			steam->client.SetPersonaState(EPersonaState::Online);
 			purple_connection_set_state(pc, PURPLE_CONNECTED);
-			purple_connection_set_display_name(pc, steamID_string);
-			purple_account_set_string(account, "steamid", steamID_string);
-			g_free(steamID_string);
+			purple_connection_set_display_name(pc, steamID_string.c_str());
+			purple_account_set_string(account, "steamid", steamID_string.c_str());
 			return;
 		case EResult::AccountLogonDenied:
 			purple_request_input(
@@ -229,7 +228,6 @@ static void steam_login(PurpleAccount *account) {
 		
 		purple_input_remove(steam->watcher); // on Linux, steam_close is called too late and Pidgin catches the EOF
 		steam->watcher = 0;
-		g_free(steamID_string);
 	};
 	
 	steam->client.onLogOff = [pc, steam](EResult result) {
@@ -263,24 +261,22 @@ static void steam_login(PurpleAccount *account) {
 		EPersonaState* state,
 		const unsigned char avatar_hash[20]
 	) {
-		auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
+		auto user_string = std::to_string(user);
 		
 		if (source && static_cast<EAccountType>(source->type) == EAccountType::Chat) {
 			// either we're joining a chat or something is happening in a chat
 			
 			// create a dummy group to store aliases if it doesn't exist yet
-			auto source_string = g_strdup_printf("%" G_GUINT64_FORMAT, *source);
-			auto group = purple_group_new(source_string);
-			g_free(source_string);
+			auto group = purple_group_new(std::to_string(*source).c_str());
 			
-			if (!purple_find_buddy_in_group(account, user_string, group)) {
+			if (!purple_find_buddy_in_group(account, user_string.c_str(), group)) {
 				// someone new to this chat
-				purple_blist_add_buddy(purple_buddy_new(account, user_string, NULL), NULL, group, NULL);
+				purple_blist_add_buddy(purple_buddy_new(account, user_string.c_str(), NULL), NULL, group, NULL);
 			}
 		}
 		
 		if (name) {
-			serv_got_alias(pc, user_string, name);
+			serv_got_alias(pc, user_string.c_str(), name);
 			if (user == g_ascii_strtoull(purple_connection_get_display_name(pc), NULL, 10))
 				purple_account_set_alias(account, name);
 		}
@@ -307,7 +303,7 @@ static void steam_login(PurpleAccount *account) {
 				prim = PURPLE_STATUS_EXTENDED_AWAY;
 				break;
 			}
-			purple_prpl_got_user_status(account, user_string, purple_primitive_get_id_from_type(prim), NULL);
+			purple_prpl_got_user_status(account, user_string.c_str(), purple_primitive_get_id_from_type(prim), NULL);
 		}
 		
 		if (avatar_hash) {
@@ -318,15 +314,15 @@ static void steam_login(PurpleAccount *account) {
 				ss << std::setw(2) << static_cast<unsigned>(avatar_hash[i]);
 			auto new_avatar = ss.str();
 			
-			purple_debug_info("steam", "%s has avatar %s\n", user_string, new_avatar.c_str());
+			purple_debug_info("steam", "%s has avatar %s\n", user_string.c_str(), new_avatar.c_str());
 			
-			auto buddy = purple_find_buddy(account, user_string);
+			auto buddy = purple_find_buddy(account, user_string.c_str());
 			if (!buddy) {
-				purple_debug_info("steam", "buddy %s not found\n", user_string);
+				purple_debug_info("steam", "buddy %s not found\n", user_string.c_str());
 				return;
 			}
 			
-			auto icon = purple_buddy_icons_find(account, user_string);
+			auto icon = purple_buddy_icons_find(account, user_string.c_str());
 			if (icon) {
 				auto old_avatar = purple_buddy_icon_get_checksum(icon);
 				purple_debug_info("steam", "old avatar was: %s\n", old_avatar);
@@ -348,8 +344,6 @@ static void steam_login(PurpleAccount *account) {
 				buddy
 			);
 		}
-		
-		g_free(user_string);
 	};
 	
 	steam->client.onChatEnter = [pc](
@@ -360,23 +354,19 @@ static void steam_login(PurpleAccount *account) {
 		const ChatMember members[]
 	) {
 		if (response == EChatRoomEnterResponse::Success) {
-			auto room_string = g_strdup_printf("%" G_GUINT64_FORMAT, room);
-			auto convo = serv_got_joined_chat(pc, room.ID, room_string);
-			g_free(room_string);
+			auto convo = serv_got_joined_chat(pc, room.ID, std::to_string(room).c_str());
 			
 			purple_conversation_set_title(convo, name);
 			auto chat = purple_conversation_get_chat_data(convo);
 			
 			while (member_count--) {
-				auto member_string = g_strdup_printf("%" G_GUINT64_FORMAT, members[member_count].steamID);
 				purple_conv_chat_add_user(
 					chat,
-					member_string,
+					std::to_string(members[member_count].steamID).c_str(),
 					NULL,
 					PURPLE_CBFLAGS_NONE, // TODO
 					FALSE
 				);
-				g_free(member_string);
 			}
 		} else {
 			// TODO
@@ -392,51 +382,43 @@ static void steam_login(PurpleAccount *account) {
 	) {
 		auto convo = purple_find_chat(pc, room.ID);
 		auto chat = purple_conversation_get_chat_data(convo);
-		auto acted_on_string = g_strdup_printf("%" G_GUINT64_FORMAT, acted_on);
+		auto acted_on_string = std::to_string(acted_on);
 		
 		if (state_change == EChatMemberStateChange::Entered) {
-			purple_conv_chat_add_user(chat, acted_on_string, NULL, PURPLE_CBFLAGS_NONE, TRUE);
+			purple_conv_chat_add_user(chat, acted_on_string.c_str(), NULL, PURPLE_CBFLAGS_NONE, TRUE);
 		} else {
 			// TODO: print reason
 			if (acted_on == g_ascii_strtoull(purple_connection_get_display_name(pc), NULL, 10)) {
 				// we got kicked or banned
 				serv_got_chat_left(pc, room.ID);
 			} else {
-				purple_conv_chat_remove_user(chat, acted_on_string, NULL);
+				purple_conv_chat_remove_user(chat, acted_on_string.c_str(), NULL);
 				
 				// remove the respective buddy
 				auto group_buddy = purple_find_buddy_in_group(
 					account,
-					acted_on_string,
+					acted_on_string.c_str(),
 					purple_find_group(purple_conversation_get_name(convo))
 				);
 				purple_blist_remove_buddy(group_buddy);
 			}
 		}
-		
-		g_free(acted_on_string);
 	};
 	
 	steam->client.onChatMsg = [pc](SteamID room, SteamID chatter, const char* message) {
-		auto chatter_string = g_strdup_printf("%" G_GUINT64_FORMAT, chatter);
 		auto html = purple_markup_escape_text(message, -1);
-		serv_got_chat_in(pc, room.ID, chatter_string, PURPLE_MESSAGE_RECV, html, time(NULL));
+		serv_got_chat_in(pc, room.ID, std::to_string(chatter).c_str(), PURPLE_MESSAGE_RECV, html, time(NULL));
 		g_free(html);
-		g_free(chatter_string);
 	};
 	
 	steam->client.onPrivateMsg = [pc](SteamID user, const char* message) {
-		auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
 		auto html = purple_markup_escape_text(message, -1);
-		serv_got_im(pc, user_string, html, PURPLE_MESSAGE_RECV, time(NULL));
+		serv_got_im(pc, std::to_string(user).c_str(), html, PURPLE_MESSAGE_RECV, time(NULL));
 		g_free(html);
-		g_free(user_string);
 	};
 	
 	steam->client.onTyping = [pc](SteamID user) {
-		auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
-		serv_got_typing(pc, user_string, 20, PURPLE_TYPING);
-		g_free(user_string);
+		serv_got_typing(pc, std::to_string(user).c_str(), 20, PURPLE_TYPING);
 	};
 	
 	steam->client.onRelationships = [account, steam](
@@ -461,11 +443,11 @@ static void steam_login(PurpleAccount *account) {
 		
 		for (auto &relationship : users) {
 			auto &user = relationship.first;
-			auto user_string = g_strdup_printf("%" G_GUINT64_FORMAT, user);
+			auto user_string = std::to_string(user);
 			
 			switch (relationship.second) {
 			case EFriendRelationship::None:
-				purple_blist_remove_buddy(purple_find_buddy(account, user_string));
+				purple_blist_remove_buddy(purple_find_buddy(account, user_string.c_str()));
 				break;
 			case EFriendRelationship::RequestRecipient:
 				// TODO
@@ -474,8 +456,8 @@ static void steam_login(PurpleAccount *account) {
 			case EFriendRelationship::Friend:
 				if (!incremental)
 					friends.push_back(user);
-				if (!purple_find_buddy(account, user_string))
-					purple_blist_add_buddy(purple_buddy_new(account, user_string, NULL), NULL, NULL, NULL);
+				if (!purple_find_buddy(account, user_string.c_str()))
+					purple_blist_add_buddy(purple_buddy_new(account, user_string.c_str(), NULL), NULL, NULL, NULL);
 				break;
 			case EFriendRelationship::RequestInitiator:
 				// TODO
@@ -485,8 +467,6 @@ static void steam_login(PurpleAccount *account) {
 				// TODO
 				purple_debug_info("steam", "EFriendRelationship not implemented: %i\n", relationship.second);
 			}
-			
-			g_free(user_string);
 		}
 		
 		if (!incremental) {

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstring>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -109,7 +110,13 @@ static PurplePluginProtocolInfo prpl_info = {
 	},
 	
 	NULL, //steam_list_emblem,         /* list_emblems */
-	NULL, //steam_status_text,         /* status_text */
+	
+	/* status_text */
+	[](PurpleBuddy *buddy) {
+		// apparently, "char *" means "takes ownership" in libpurple's books
+		return g_strdup((gchar *)purple_buddy_get_protocol_data(buddy));
+	},
+	
 	NULL, //steam_tooltip_text,        /* tooltip_text */
 	
 	/* status_types */
@@ -340,6 +347,27 @@ static PurplePluginProtocolInfo prpl_info = {
 					break;
 				}
 				purple_prpl_got_user_status(account, user_string.c_str(), purple_primitive_get_id_from_type(prim), NULL);
+			}
+			
+			if (game_name) {
+				auto buddies = purple_find_buddies(account, user_string.c_str());
+				if (!buddies) {
+					purple_debug_info("steam", "buddy %s not found\n", user_string.c_str());
+					return;
+				}
+				
+				auto html = g_markup_escape_text(game_name, -1);
+				
+				g_slist_foreach(buddies, [](gpointer data, gpointer user_data) {
+					auto buddy = PURPLE_BUDDY(data);
+					auto HTML = reinterpret_cast<decltype(html)>(user_data);
+					
+					g_free(purple_buddy_get_protocol_data(buddy));
+					// empty game_name means not in-game
+					purple_buddy_set_protocol_data(buddy, std::strlen(HTML) ? g_strconcat("In-Game: ", HTML, NULL) : NULL);
+				}, html);
+				
+				g_free(html);
 			}
 			
 			if (avatar_hash) {
@@ -657,7 +685,12 @@ static PurplePluginProtocolInfo prpl_info = {
 	NULL,                   /* alias_buddy */
 	NULL,//steam_fake_group_buddy,    /* group_buddy */
 	NULL,//steam_group_rename,        /* rename_group */
-	NULL,//steam_buddy_free,          /* buddy_free */
+	
+	/* buddy_free */
+	[](PurpleBuddy *buddy) {
+		g_free(purple_buddy_get_protocol_data(buddy));
+	},
+
 	NULL,//steam_conversation_closed, /* convo_closed */
 	NULL,//purple_normalize_nocase,/* normalize */
 	NULL,                   /* set_buddy_icon */

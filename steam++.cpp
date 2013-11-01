@@ -1,10 +1,51 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
-
-#include <cryptopp/modes.h>
+#include <sstream>
 
 #include "cmclient.h"
+
+std::map<std::string, std::string> Steam::parse_VDF(const std::string& text) {
+	std::istringstream text_stream(text);
+	std::map<std::string, std::string> kv;
+
+	// we want to know the indentation of nested VDFs, so read line by line to avoid eating an opening brace
+	std::string line;
+	while (std::getline(text_stream, line)) {
+		std::istringstream line_stream(line);
+		std::string key, value;
+		line_stream >> key >> value;
+
+		// if the value is a nested VDF, store it as a string
+		if (value.empty()) {
+			// the { should be on the next line
+			std::string brace;
+			std::getline(text_stream, brace);
+			assert(brace[brace.length() - 1] == '{');
+			brace[brace.length() - 1] = '}';
+
+			std::ostringstream nested_vdf;
+			std::ostream_iterator<std::string> it(nested_vdf, "\n");
+
+			// append everything until we see the matching closing brace
+			std::string line;
+			while (std::getline(text_stream, line) && line != brace)
+				*it++ = line;
+
+			value = nested_vdf.str();
+		} else {
+			value = value.substr(1, value.length() - 2);
+		}
+
+		kv[key.substr(1, key.length() - 2)] = std::move(value);
+	}
+
+	return kv;
+}
+
+std::map<std::string, std::string> Steam::operator*(const std::string& text) {
+	return parse_VDF(text);
+}
 
 SteamID::SteamID(std::uint64_t steamID64) :
 	steamID64(steamID64) {}
@@ -127,6 +168,30 @@ void SteamClient::RequestUserInfo(std::size_t count, SteamID users[]) {
 	cmClient->WriteMessage(EMsg::ClientRequestFriendData, request);
 }
 
+void SteamClient::GetAppOwnershipTicket(std::uint32_t appid) {
+	CMsgClientGetAppOwnershipTicket request;
+
+	request.set_app_id(appid);
+
+	cmClient->WriteMessage(EMsg::ClientGetAppOwnershipTicket, request);
+}
+
+void SteamClient::PICSGetProductInfo(std::uint32_t app) {
+	CMsgPICSProductInfoRequest request;
+
+	request.add_apps()->set_appid(app);
+
+	cmClient->WriteMessage(EMsg::PICSProductInfoRequest, request);
+}
+
+void SteamClient::GetDepotDecryptionKey(std::uint32_t depotid) {
+	CMsgClientGetDepotDecryptionKey request;
+
+	request.set_depot_id(depotid);
+
+	cmClient->WriteMessage(EMsg::ClientGetDepotDecryptionKey, request);
+}
+
 
 std::size_t SteamClient::connected() {
 	packetLength = 0;	
@@ -145,20 +210,7 @@ std::size_t SteamClient::readable(const unsigned char* input) {
 	}
 	
 	if (cmClient->encrypted) {
-		byte iv[16];
-		ECB_Mode<AES>::Decryption(cmClient->sessionKey, sizeof(cmClient->sessionKey)).ProcessData(iv, input, 16);
-		
-		auto crypted_data = input + 16;
-		CBC_Mode<AES>::Decryption d(cmClient->sessionKey, sizeof(cmClient->sessionKey), iv);
-		// I don't see any way to get the decrypted size other than to use a string
-		std::string output;
-		ArraySource(
-			crypted_data,
-			packetLength - 16,
-			true,
-			new StreamTransformationFilter(d, new StringSink(output))
-		);
-		
+		auto output = symmetric_decrypt(cmClient->sessionKey, input, packetLength);
 		ReadMessage(reinterpret_cast<const unsigned char*>(output.data()), output.length());
 	} else {
 		ReadMessage(input, packetLength);

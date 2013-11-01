@@ -1,8 +1,16 @@
 #include <functional>
 #include <map>
+#include <queue>
+#include <vector>
 #include "steam_language/steam_language.h"
 
 namespace Steam {
+	// a very simple, non-recursive parser that doesn't support comments or unquoted strings and assumes consistent indentation
+	std::map<std::string, std::string> parse_VDF(const std::string& text);
+
+	// shortcut for parse_VDF
+	std::map<std::string, std::string> operator*(const std::string& text);
+
 	const struct {
 		const char* host;
 		std::uint16_t port;
@@ -203,6 +211,15 @@ namespace Steam {
 			std::map<SteamID, EClanRelationship> &groups
 		)> onRelationships;
 		
+		std::function<void(EResult result, std::uint32_t appID, std::string &ticket)> onAppOwnershipTicket;
+
+		/**
+		 * Us jkdsljf;asdk;lf a
+		 */
+		std::function<void(std::uint32_t appID, std::string &key_values)> onPICSProductInfo;
+
+		std::function<void(EResult result, std::uint32_t depotID, std::string &depot_key)> onDepotKey;
+		
 		
 		/**
 		 * Call this after the encryption handshake. @a steamID is only needed if you are logging into a non-default instance.
@@ -236,6 +253,12 @@ namespace Steam {
 		 * @see onUserInfo
 		 */
 		void RequestUserInfo(std::size_t count, SteamID users[]);
+
+		void GetAppOwnershipTicket(std::uint32_t appid);
+
+		void PICSGetProductInfo(std::uint32_t app);
+
+		void GetDepotDecryptionKey(std::uint32_t depotid);
 		
 	private:
 		class CMClient;
@@ -246,5 +269,67 @@ namespace Steam {
 		std::size_t packetLength;
 		void ReadMessage(const unsigned char* data, std::size_t length);
 		void HandleMessage(EMsg eMsg, const unsigned char* data, std::size_t length, std::uint64_t job_id);
+	};
+
+	class CSClientPool {
+		typedef std::function<void(
+			const char* uri,
+			const char* method,
+			std::vector<std::pair<const char*, const char*>> headers,
+			std::vector<std::tuple<const char*, const unsigned char*, std::size_t>> query,
+			std::function<void(int status_code, std::string &body)> callback
+		)> http_request_t;
+
+	public:
+		struct ChunkData {
+			std::string chunk_ID;
+			std::uint64_t offset;
+			std::uint32_t size;
+		};
+
+		struct FileData {
+			std::string filename;
+			std::vector<ChunkData> chunks;
+			EDepotFileFlag flags;
+			std::uint64_t size;
+		};
+
+		CSClientPool(std::vector<std::string> servers, const unsigned char* app_ticket, std::size_t app_ticket_length, http_request_t http_request);
+		// TODO: add destructor
+
+		/*
+		The callback receives a list of files.
+		A file consists of filename, size, flags and a list of chunks.
+		*/
+		void DownloadDepotManifest(
+			std::uint32_t depotid,
+			std::uint64_t manifestid,
+			std::string app_ticket,
+			std::string depot_key,
+			std::function<void(std::vector<FileData> &files)> callback
+		);
+
+		void DownloadDepotChunk(std::uint32_t depotid, std::string chunkid, std::string app_ticket, std::string depot_key, std::function<void(std::string chunk)>);
+
+		static void FetchServerList(
+			const char* host,
+			std::uint16_t port,
+			int cell_id,
+			const http_request_t &http_request,
+			std::function<void(std::vector<std::string> &server_list)> callback
+		);
+
+	private:
+		http_request_t http_request;
+
+		struct CSClient;
+
+		std::vector<CSClient*> clients;
+
+		std::queue<std::function<void(CSClient &client)>> queue;
+
+		void DoOrQueue(std::uint32_t depotid, std::string app_ticket, std::string uri, std::function<void(std::string body)> callback);
+
+		static std::string make_header(CSClient &client, const std::string &uri);
 	};
 }

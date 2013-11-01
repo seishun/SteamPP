@@ -13,6 +13,7 @@ PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS
 	${PROTOBUF_IMPORT_DIRS}/steamclient/steammessages_clientserver.proto
 	${PROTOBUF_IMPORT_DIRS}/steamclient/steammessages_base.proto
 	${PROTOBUF_IMPORT_DIRS}/steamclient/encrypted_app_ticket.proto
+	${PROTOBUF_IMPORT_DIRS}/steamclient/content_manifest.proto
 )
 
 set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
@@ -28,6 +29,7 @@ add_library(steam++
 	steam++.cpp
 	cmclient.cpp
 	handlers.cpp
+	csclientpool.cpp
 	${PROTO_SRCS}
 )
 
@@ -41,18 +43,20 @@ target_link_libraries(steam++
 # sample project that uses libuv as the event loop
 # to be removed when there is a complete example project somewhere
 
-find_package(Libuv)
-if (LIBUV_FOUND)
-	add_executable(steamuv
+# find_package(Libuv)
+# find_package(HttpParser)
+# find_path(NODE_NATIVE_INCLUDE_DIR native.h PATH_SUFFIXES native)
+find_package(Qt5Core)
+if (Qt5Core_FOUND)
+	add_executable(QDepotDownloader
 		steamuv.cpp
 	)
 	
-	include_directories(${LIBUV_INCLUDE_DIR})
-	
-	target_link_libraries(steamuv
+	target_link_libraries(QDepotDownloader
 		steam++
-		${LIBUV_LIBRARIES}
 	)
+	
+	qt5_use_modules(QDepotDownloader Core Network)
 endif()
 
 if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
@@ -61,22 +65,22 @@ endif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
 
 # libpurple plugin
 
-find_library(LIBPURPLE_LIBRARIES purple)
-find_path(LIBPURPLE_INCLUDE_DIRS purple.h PATH_SUFFIXES libpurple)
-find_package(GLIB)
-if (LIBPURPLE_LIBRARIES AND LIBPURPLE_INCLUDE_DIRS AND GLIB_FOUND)
-	add_library(steam MODULE
-		steampurple.cpp
-	)
+# find_library(LIBPURPLE_LIBRARIES purple)
+# find_path(LIBPURPLE_INCLUDE_DIRS purple.h PATH_SUFFIXES libpurple)
+# find_package(GLIB)
+# if (LIBPURPLE_LIBRARIES AND LIBPURPLE_INCLUDE_DIRS AND GLIB_FOUND)
+	# add_library(steam MODULE
+		# steampurple.cpp
+	# )
 	
-	include_directories(
-		${LIBPURPLE_INCLUDE_DIRS}
-		${GLIB_INCLUDE_DIRS}
-	)
+	# include_directories(
+		# ${LIBPURPLE_INCLUDE_DIRS}
+		# ${GLIB_INCLUDE_DIRS}
+	# )
 	
-	target_link_libraries(steam
-		steam++
-		${LIBPURPLE_LIBRARIES}
-		${GLIB_LIBRARIES}
-	)
-endif()
+	# target_link_libraries(steam
+		# steam++
+		# ${LIBPURPLE_LIBRARIES}
+		# ${GLIB_LIBRARIES}
+	# )
+# endif()

@@ -2,25 +2,8 @@
 #include <cassert>
 
 #include <cryptopp/crc.h>
-#include <cryptopp/rsa.h>
-
-#include <archive.h>
-#include <archive_entry.h>
 
 #include "cmclient.h"
-
-byte public_key[] = {
-	0x30, 0x81, 0x9D, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01,
-	0x05, 0x00, 0x03, 0x81, 0x8B, 0x00, 0x30, 0x81, 0x87, 0x02, 0x81, 0x81, 0x00, 0xDF, 0xEC, 0x1A,
-	0xD6, 0x2C, 0x10, 0x66, 0x2C, 0x17, 0x35, 0x3A, 0x14, 0xB0, 0x7C, 0x59, 0x11, 0x7F, 0x9D, 0xD3,
-	0xD8, 0x2B, 0x7A, 0xE3, 0xE0, 0x15, 0xCD, 0x19, 0x1E, 0x46, 0xE8, 0x7B, 0x87, 0x74, 0xA2, 0x18,
-	0x46, 0x31, 0xA9, 0x03, 0x14, 0x79, 0x82, 0x8E, 0xE9, 0x45, 0xA2, 0x49, 0x12, 0xA9, 0x23, 0x68,
-	0x73, 0x89, 0xCF, 0x69, 0xA1, 0xB1, 0x61, 0x46, 0xBD, 0xC1, 0xBE, 0xBF, 0xD6, 0x01, 0x1B, 0xD8,
-	0x81, 0xD4, 0xDC, 0x90, 0xFB, 0xFE, 0x4F, 0x52, 0x73, 0x66, 0xCB, 0x95, 0x70, 0xD7, 0xC5, 0x8E,
-	0xBA, 0x1C, 0x7A, 0x33, 0x75, 0xA1, 0x62, 0x34, 0x46, 0xBB, 0x60, 0xB7, 0x80, 0x68, 0xFA, 0x13,
-	0xA7, 0x7A, 0x8A, 0x37, 0x4B, 0x9E, 0xC6, 0xF4, 0x5D, 0x5F, 0x3A, 0x99, 0xF9, 0x9E, 0xC4, 0x3A,
-	0xE9, 0x63, 0xA2, 0xBB, 0x88, 0x19, 0x28, 0xE0, 0xE7, 0x14, 0xC0, 0x42, 0x89, 0x02, 0x01, 0x11,
-};
 
 void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_t length, std::uint64_t job_id) {
 	switch (emsg) {
@@ -29,23 +12,14 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 		{
 			auto enc_request = reinterpret_cast<const MsgChannelEncryptRequest*>(data);
 			
-			RSA::PublicKey key;
-			ArraySource source(public_key, sizeof(public_key), true /* pumpAll */);
-			key.Load(source);
-			RSAES_OAEP_SHA_Encryptor rsa(key);
-			
-			auto rsa_size = rsa.FixedCiphertextLength();
-			
-			cmClient->WriteMessage(EMsg::ChannelEncryptResponse, sizeof(MsgChannelEncryptResponse) + rsa_size + 4 + 4, [this, &rsa, rsa_size](unsigned char* buffer) {
+			cmClient->WriteMessage(EMsg::ChannelEncryptResponse, sizeof(MsgChannelEncryptResponse) + 128 + 4 + 4, [this](unsigned char* buffer) {
 				auto enc_resp = new (buffer) MsgChannelEncryptResponse;
-				auto crypted_sess_key = buffer + sizeof(MsgChannelEncryptResponse); 
+				auto crypted_sess_key = buffer + sizeof(MsgChannelEncryptResponse);
+
+				create_session_key(cmClient->rnd, cmClient->sessionKey, crypted_sess_key);
 				
-				cmClient->rnd.GenerateBlock(cmClient->sessionKey, sizeof(cmClient->sessionKey));
-				
-				rsa.Encrypt(cmClient->rnd, cmClient->sessionKey, sizeof(cmClient->sessionKey), crypted_sess_key);
-				
-				CRC32().CalculateDigest(crypted_sess_key + rsa_size, crypted_sess_key, rsa_size);
-				*reinterpret_cast<std::uint32_t*>(crypted_sess_key + rsa_size + 4) = 0;
+				CRC32().CalculateDigest(crypted_sess_key + 128, crypted_sess_key, 128);
+				*reinterpret_cast<std::uint32_t*>(crypted_sess_key + 128 + 4) = 0;
 			});
 		}
 		
@@ -71,48 +45,21 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			msg_multi.ParseFromArray(data, length);
 			auto size_unzipped = msg_multi.size_unzipped();
 			auto payload = msg_multi.message_body();
-			auto data = reinterpret_cast<const unsigned char*>(payload.data());
 			
 			if (size_unzipped > 0) {
-				auto buffer = new unsigned char[size_unzipped];
-				auto archive = archive_read_new();
-				
-				auto result = archive_read_support_filter_all(archive); // I don't see deflate so using all
-				assert(result == ARCHIVE_OK);
-				
-				result = archive_read_support_format_zip(archive);
-				assert(result == ARCHIVE_OK);
-				
-				result = archive_read_open_memory(archive, const_cast<unsigned char*>(data), payload.size());
-				assert(result == ARCHIVE_OK);
-				
-				archive_entry* entry;
-				result = archive_read_next_header(archive, &entry);
-				assert(result == ARCHIVE_OK);
-				assert(archive_entry_pathname(entry) == std::string("z"));
-				assert(archive_entry_size(entry) == size_unzipped);
-				
-				auto length = archive_read_data(archive, buffer, size_unzipped);
-				assert(length == size_unzipped);
-				
-				assert(archive_read_next_header(archive, &entry) == ARCHIVE_EOF);
-				
-				result = archive_read_free(archive);
-				assert(result == ARCHIVE_OK);
-				
-				data = buffer;
+				payload = unzip(payload);
+				assert(payload.size() == size_unzipped);
 			}
 			
-			auto payload_size = size_unzipped ? size_unzipped : payload.size();
-			for (unsigned offset = 0; offset < payload_size;) {
+			auto data = reinterpret_cast<const unsigned char*>(payload.data());
+			for (unsigned offset = 0; offset < payload.size();) {
 				auto subSize = *reinterpret_cast<const std::uint32_t*>(data + offset);
+				if (subSize == 0) {
+					auto a = 5;
+				}
 				ReadMessage(data + offset + 4, subSize);
 				offset += 4 + subSize;
 			}
-			
-			if (size_unzipped > 0) {
-				delete[] data;
-			}			
 		}
 		
 		break;
@@ -307,7 +254,7 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 				if (onPrivateMsg)
 					onPrivateMsg(msg.steamid_from(), msg.message().c_str());
 				break;
-				
+
 			case EChatEntryType::Typing:
 				if (onTyping)
 					onTyping(msg.steamid_from());
@@ -323,6 +270,52 @@ void SteamClient::HandleMessage(EMsg emsg, const unsigned char* data, std::size_
 			}
 		}
 		
+		break;
+
+	case EMsg::ClientGetAppOwnershipTicketResponse:
+		{
+			if (!onAppOwnershipTicket)
+				return;
+
+			CMsgClientGetAppOwnershipTicketResponse ticket_response;
+			ticket_response.ParseFromArray(data, length);
+			
+			onAppOwnershipTicket(
+				static_cast<EResult>(ticket_response.eresult()),
+				ticket_response.app_id(),
+				*ticket_response.mutable_ticket()
+			);
+		}
+
+		break;
+
+	case EMsg::PICSProductInfoResponse:
+		{
+			if (!onPICSProductInfo)
+				return;
+
+			CMsgPICSProductInfoResponse product_response;
+			product_response.ParseFromArray(data, length);
+			for (auto &app_info : *product_response.mutable_apps()) {
+				auto &vdf = *app_info.mutable_buffer();
+				vdf.pop_back(); // Valve thinks it's a good idea to append a null char to everything
+				onPICSProductInfo(app_info.appid(), vdf);
+			}
+		}
+		
+		break;
+
+	case EMsg::ClientGetDepotDecryptionKeyResponse:
+		{
+			if (!onDepotKey)
+				return;
+
+			CMsgClientGetDepotDecryptionKeyResponse key_response;
+			key_response.ParseFromArray(data, length);
+			
+			onDepotKey(static_cast<EResult>(key_response.eresult()), key_response.depot_id(), *key_response.mutable_depot_encryption_key());
+		}
+
 		break;
 	}
 }

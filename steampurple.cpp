@@ -54,14 +54,15 @@ static void steam_connect(PurpleAccount *account, SteamPurple* steam) {
 			auto steam = reinterpret_cast<SteamPurple*>(purple_connection_get_protocol_data(pc));
 			auto len = read(source, &steam->read_buffer[steam->read_offset], steam->read_buffer.size() - steam->read_offset);
 			purple_debug_info("steam", "read: %i\n", len);
-			// len == 0: preceded by a ClientLoggedOff or ClientLogOnResponse, socket should be already closed by us
-			if (len == -1) {
+			if (len == 0)
+				purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, "Connection closed by server");
+			if (len == -1)
 				purple_connection_error_reason(pc, PURPLE_CONNECTION_ERROR_NETWORK_ERROR, strerror(errno));
+			if (len == 0 || len == -1) {
 				purple_input_remove(steam->watcher); // on Linux, steam_close is called too late and Pidgin catches the EOF
 				steam->watcher = 0;
 				return;
 			}
-			assert(len > 0);
 			steam->read_offset += len;
 			if (steam->read_offset == steam->read_buffer.size()) {
 				auto next_len = steam->client.readable(steam->read_buffer.data());
